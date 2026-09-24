@@ -73,3 +73,61 @@ code, pre, .mono {
   background-color: #E0E7FF;
   color: #1E1B4B;
 }
+
+/* ─── Phone Viewport Simulation Overrides ─── */
+.phone-viewport-content {
+  font-size: 13px !important;
+}
+
+/* Force clean single-column stacking for grids in mobile simulation */
+.phone-viewport-content .grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0.75rem !important;
+}
+
+/* Force flex containers to stack vertically on phone view */
+.phone-viewport-content .flex.sm\:flex-row,
+.phone-viewport-content .flex.md\:flex-row,
+.phone-viewport-content .flex.lg\:flex-row,
+.phone-viewport-content .flex.sm\:items-center,
+.phone-viewport-content .flex.md\:items-center,
+.phone-viewport-content .flex.lg\:items-center {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.75rem !important;
+}
+
+/* Prevent multi-column spans from blowing out width */
+.phone-viewport-content [class*="col-span-"] {
+  grid-column: span 1 / span 1 !important;
+}
+
+/* Scale headings appropriately for 390px mobile frame */
+.phone-viewport-content h1 {
+  font-size: 1.25rem !important;
+  line-height: 1.6rem !important;
+}
+
+.phone-viewport-content h2 {
+  font-size: 1.05rem !important;
+  line-height: 1.45rem !important;
+}
+
+.phone-viewport-content h3 {
+  font-size: 0.925rem !important;
+  line-height: 1.35rem !important;
+}
+
+/* Ensure wide tables scroll horizontally within phone frame */
+.phone-viewport-content table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Buttons take full width in stacked mobile action footers */
+.phone-viewport-content .sm\:w-auto {
+  width: 100% !important;
+}
+

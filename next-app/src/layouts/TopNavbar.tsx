@@ -4,23 +4,32 @@ import React, { useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { Bell, Search, Menu, Building2, Check, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { roleLabel, timeAgo } from '@/lib/utils';
+import { roleLabel, timeAgo, cn } from '@/lib/utils';
 
-export const TopNavbar: React.FC = () => {
+export interface TopNavbarProps {
+  isSimulation?: boolean;
+}
+
+export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) => {
   const { currentUser, notifications, unreadCount, markAllRead, toggleSidebar } =
     useAppStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between gap-4 transition-all">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={toggleSidebar}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden transition-colors"
-          aria-label="Toggle Navigation"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+    <header className={cn(
+      "sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-all",
+      isSimulation ? "h-14 px-3" : "h-16"
+    )}>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {!isSimulation && (
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden transition-colors"
+            aria-label="Toggle Navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
 
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-sm shadow-indigo-300 group-hover:scale-105 transition-transform">

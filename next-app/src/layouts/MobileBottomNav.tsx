@@ -7,7 +7,11 @@ import { useAppStore } from '@/store/appStore';
 import { Home, Compass, FolderGit2, MessageSquare, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export const MobileBottomNav: React.FC = () => {
+export interface MobileBottomNavProps {
+  isSimulation?: boolean;
+}
+
+export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation = false }) => {
   const { currentUser } = useAppStore();
   const pathname = usePathname();
 
@@ -27,7 +31,14 @@ export const MobileBottomNav: React.FC = () => {
   const homePath = getHomePath();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3 py-2 flex items-center justify-around">
+    <nav
+      className={cn(
+        'bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3 py-2 flex items-center justify-around select-none',
+        isSimulation
+          ? 'absolute bottom-0 left-0 right-0 z-40 shadow-lg'
+          : 'lg:hidden fixed bottom-0 left-0 right-0 z-40'
+      )}
+    >
       <Link
         href={homePath}
         className={cn(
