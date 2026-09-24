@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+*/node_modules/
+package-lock.json.backup
+
+# Next.js build output
+.next/
+*/.next/
+out/
+*/out/
+
+# Production build artifacts
+dist/
+*/dist/
+build/
+*/build/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment local overrides
+.env*.local
+.env
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+*/next-env.d.ts
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

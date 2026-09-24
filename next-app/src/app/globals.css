@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* ─── Brand Colors ─── */
+  --color-brand-50: #EEF2FF;
+  --color-brand-100: #E0E7FF;
+  --color-brand-200: #C7D2FE;
+  --color-brand-300: #A5B4FC;
+  --color-brand-400: #818CF8;
+  --color-brand-500: #4F46E5;
+  --color-brand-600: #4338CA;
+  --color-brand-700: #3730A3;
+  --color-brand-800: #312E81;
+  --color-brand-900: #1E1B4B;
+
+  /* ─── Typography ─── */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #F8FAFC;
+  color: #0F172A;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #0F172A;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+:focus-visible {
+  outline: 2px solid #4F46E5;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background-color: #E0E7FF;
+  color: #1E1B4B;
+}
