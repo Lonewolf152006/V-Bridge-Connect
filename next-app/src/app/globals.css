@@ -77,21 +77,27 @@ code, pre, .mono {
 /* ─── Phone Viewport Simulation Overrides ─── */
 .phone-viewport-content {
   font-size: 13px !important;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
-/* Force clean single-column stacking for grids in mobile simulation */
-.phone-viewport-content .grid {
+/* Force clean single-column stacking for wide layout grids in mobile simulation */
+.phone-viewport-content .grid:not(.grid-cols-2):not(.grid-cols-3) {
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0.75rem !important;
 }
 
-/* Force flex containers to stack vertically on phone view */
-.phone-viewport-content .flex.sm\:flex-row,
-.phone-viewport-content .flex.md\:flex-row,
-.phone-viewport-content .flex.lg\:flex-row,
-.phone-viewport-content .flex.sm\:items-center,
-.phone-viewport-content .flex.md\:items-center,
-.phone-viewport-content .flex.lg\:items-center {
+/* 2-column stat metric grids stay 2-column on phone */
+.phone-viewport-content .grid.grid-cols-2,
+.phone-viewport-content .grid.grid-cols-2.lg\:grid-cols-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.625rem !important;
+}
+
+/* Force desktop flex rows to stack vertically on phone view */
+.phone-viewport-content .flex.sm\:flex-row:not(.mobile-keep-row),
+.phone-viewport-content .flex.md\:flex-row:not(.mobile-keep-row),
+.phone-viewport-content .flex.lg\:flex-row:not(.mobile-keep-row) {
   flex-direction: column !important;
   align-items: stretch !important;
   gap: 0.75rem !important;

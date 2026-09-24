@@ -33,10 +33,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
   return (
     <nav
       className={cn(
-        'bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3 py-2 flex items-center justify-around select-none',
+        'bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3 flex items-center justify-around select-none transition-all',
         isSimulation
-          ? 'absolute bottom-0 left-0 right-0 z-40 shadow-lg'
-          : 'lg:hidden fixed bottom-0 left-0 right-0 z-40'
+          ? 'absolute bottom-0 left-0 right-0 z-40 shadow-lg pt-1.5 pb-4'
+          : 'lg:hidden fixed bottom-0 left-0 right-0 z-40 py-2'
       )}
     >
       <Link

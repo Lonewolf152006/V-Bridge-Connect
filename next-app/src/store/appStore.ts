@@ -79,7 +79,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   currentUser: MOCK_USERS.STUDENT,
-  sidebarOpen: true,
+  sidebarOpen: false,
   unreadCount: 3,
   viewportMode: 'desktop',
   notifications: [

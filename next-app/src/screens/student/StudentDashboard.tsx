@@ -45,20 +45,20 @@ export const StudentDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link href="/activities">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 pt-1">
+          <Link href="/activities" className="flex-1 sm:flex-initial">
             <Button
               variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-none"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-none text-xs sm:text-sm px-3 sm:px-4"
               leftIcon={<Compass className="w-4 h-4" />}
             >
               Browse Catalog
             </Button>
           </Link>
-          <Link href="/certificates">
+          <Link href="/certificates" className="flex-1 sm:flex-initial">
             <Button
               variant="primary"
-              className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-900/50"
+              className="w-full sm:w-auto bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-900/50 text-xs sm:text-sm px-3 sm:px-4"
               leftIcon={<Award className="w-4 h-4" />}
             >
               My Ledger

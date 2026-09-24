@@ -40,36 +40,43 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
               <span className="font-extrabold text-slate-900 tracking-tight text-base font-display">
                 VBridge<span className="text-indigo-600">Connect</span>
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
+              <span className={cn(
+                "text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200",
+                isSimulation && "hidden"
+              )}>
                 Institutional
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 -mt-0.5 hidden sm:block">
+            <div className={cn("text-[10px] text-slate-400 -mt-0.5 hidden sm:block", isSimulation && "hidden sm:hidden")}>
               Academic & Industry Collaboration
             </div>
           </div>
         </Link>
       </div>
 
-      <div className="hidden md:flex items-center flex-1 max-w-md mx-4">
-        <div className="relative w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search activities, teams, deliverables..."
-            className="w-full pl-9 pr-12 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400"
-          />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] bg-white border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded font-mono shadow-2xs">
-            ⌘K
-          </kbd>
+      {!isSimulation && (
+        <div className="hidden md:flex items-center flex-1 max-w-md mx-4">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search activities, teams, deliverables..."
+              className="w-full pl-9 pr-12 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400"
+            />
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] bg-white border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded font-mono shadow-2xs">
+              ⌘K
+            </kbd>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="flex items-center gap-3">
-        <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
-          <Building2 className="w-3.5 h-3.5 text-slate-400" />
-          <span className="font-medium text-slate-700">{currentUser.department}</span>
-        </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {!isSimulation && (
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
+            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            <span className="font-medium text-slate-700">{currentUser.department}</span>
+          </div>
+        )}
 
         <div className="relative">
           <button
@@ -145,16 +152,18 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
           <img
             src={currentUser.avatarUrl}
             alt={currentUser.name}
-            className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-100 object-cover"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 bg-slate-100 object-cover"
           />
-          <div className="hidden lg:block text-left">
-            <p className="text-xs font-bold text-slate-900 leading-tight">
-              {currentUser.name}
-            </p>
-            <p className="text-[10px] text-indigo-600 font-medium">
-              {roleLabel(currentUser.role)}
-            </p>
-          </div>
+          {!isSimulation && (
+            <div className="hidden lg:block text-left">
+              <p className="text-xs font-bold text-slate-900 leading-tight">
+                {currentUser.name}
+              </p>
+              <p className="text-[10px] text-indigo-600 font-medium">
+                {roleLabel(currentUser.role)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </header>

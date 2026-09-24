@@ -23,7 +23,7 @@ import {
   BarChart3,
   ExternalLink,
 } from 'lucide-react';
-import { roleLabel } from '@/lib/utils';
+import { roleLabel, cn } from '@/lib/utils';
 
 export const PresentationControlPanel: React.FC = () => {
   const { currentUser, setRole, viewportMode, setViewportMode } = useAppStore();
@@ -71,7 +71,12 @@ export const PresentationControlPanel: React.FC = () => {
   return (
     <aside
       aria-label="Presentation Demo Controller"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center max-w-[95vw]"
+      className={cn(
+        'fixed z-50 flex flex-col max-w-[95vw] transition-all duration-300',
+        viewportMode === 'mobile'
+          ? 'bottom-20 right-4 sm:right-6 md:right-8 md:bottom-8 left-auto translate-x-0 items-end'
+          : 'bottom-4 left-1/2 -translate-x-1/2 items-center'
+      )}
     >
       {/* Expanded Control Box */}
       {isExpanded && (
