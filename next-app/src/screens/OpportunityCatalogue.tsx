@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
@@ -25,11 +25,39 @@ export const OpportunityCatalogue: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedDept, setSelectedDept] = useState<string>('ALL');
 
+  // Live activities state from database
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+
   // Application Modal state
   const [applyingActivity, setApplyingActivity] = useState<Activity | null>(null);
   const [sop, setSop] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadActivities() {
+      try {
+        setLoadingActivities(true);
+        const res = await fetch('/api/activities');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0 && isMounted) {
+            setActivities(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load activities from API, using fallback:', err);
+      } finally {
+        if (isMounted) setLoadingActivities(false);
+      }
+    }
+    loadActivities();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const categories = [
     { label: 'All Categories', value: 'ALL' },
@@ -39,7 +67,7 @@ export const OpportunityCatalogue: React.FC = () => {
     { label: 'Industry Project', value: 'INDUSTRY_PROJECT' },
   ];
 
-  const filteredActivities = MOCK_ACTIVITIES.filter((act) => {
+  const filteredActivities = activities.filter((act) => {
     const matchesSearch =
       act.title.toLowerCase().includes(search.toLowerCase()) ||
       act.description.toLowerCase().includes(search.toLowerCase());
@@ -50,9 +78,24 @@ export const OpportunityCatalogue: React.FC = () => {
     return matchesSearch && matchesCat && matchesDept;
   });
 
-  const handleApply = (e: React.FormEvent) => {
+  const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
+    try {
+      if (applyingActivity) {
+        await fetch('/api/v1/applications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            activityId: applyingActivity.id,
+            statementOfPurpose: sop,
+            portfolioUrl: portfolioUrl || undefined,
+          }),
+        });
+      }
+    } catch (err) {
+      console.error('Application submit error:', err);
+    }
     setTimeout(() => {
       setSubmitted(false);
       setApplyingActivity(null);
@@ -100,7 +143,7 @@ export const OpportunityCatalogue: React.FC = () => {
             className="px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           >
             <option value="ALL">All Departments</option>
-            <option value="CS & AI">Computer Science & AI</option>
+            <option value="Electronics and Computer Science">Electronics and Computer Science</option>
             <option value="Bioinformatics">Bioinformatics</option>
             <option value="Electrical Engineering">Electrical Engineering</option>
           </select>

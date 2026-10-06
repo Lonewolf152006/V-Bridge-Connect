@@ -5,63 +5,59 @@ import type { User, UserRole, Notification } from '@/types';
 
 export const MOCK_USERS: Record<UserRole, User> = {
   STUDENT: {
-    id: 'user-student-001',
-    name: 'Siddharth Chen',
-    email: 'siddharth.chen@university.edu',
+    id: 'user-vedant-nikumbh',
+    name: 'Vedant Balvant Nikumbh',
+    email: 'vedant.nikumbh@vit.edu.in',
     role: 'STUDENT',
-    department: 'Computer Science & AI',
-    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Siddharth',
-    institutionalId: 'VC-2026-891',
-    isOnline: true,
-  },
-  FACULTY_MENTOR: {
-    id: 'user-mentor-001',
-    name: 'Dr. Eleanor Vance',
-    email: 'eleanor.vance@university.edu',
-    role: 'FACULTY_MENTOR',
-    department: 'Computer Science & AI',
-    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Eleanor',
-    institutionalId: 'FAC-2019-042',
+    department: 'Electronics and Computer Science',
+    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=VedantNikumbh',
+    institutionalId: '24108B0021',
     isOnline: true,
   },
   COORDINATOR: {
-    id: 'user-coord-001',
-    name: 'Prof. Arjun Mehta',
-    email: 'arjun.mehta@university.edu',
+    id: 'user-sheetal-patil',
+    name: 'Dr. Sheetal Patil',
+    email: 'sheetal.patil@vit.edu.in',
     role: 'COORDINATOR',
-    department: 'Computer Science & AI',
-    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Arjun',
-    institutionalId: 'FAC-2015-011',
-  },
-  EXTERNAL_REVIEWER: {
-    id: 'user-reviewer-001',
-    name: 'Dr. Priya Nair',
-    email: 'priya.nair@externalorg.com',
-    role: 'EXTERNAL_REVIEWER',
-    department: 'External',
-    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Priya',
+    department: 'Electronics and Computer Science',
+    avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=SheetalPatil',
+    institutionalId: 'FAC-SPATIL-2026',
+    isOnline: true,
   },
   INDUSTRY_PARTNER: {
     id: 'user-partner-001',
-    name: 'Rahul Kapoor',
-    email: 'rahul.kapoor@techcorp.com',
+    name: 'Rahul Kapoor (Industry Expert)',
+    email: 'expert@industry.com',
     role: 'INDUSTRY_PARTNER',
-    department: 'TechCorp Solutions',
+    department: 'TechCorp Solutions / Industry Partner',
     avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rahul',
+    institutionalId: 'EXP-2026-001',
+    isOnline: true,
   },
   SUPER_ADMIN: {
     id: 'user-admin-001',
-    name: 'Dean Rita Sharma',
-    email: 'rita.sharma@university.edu',
+    name: 'Dean Rita Sharma (Super Admin)',
+    email: 'admin@vbridge.com',
     role: 'SUPER_ADMIN',
-    department: 'Academic Affairs',
+    department: 'Central Institutional Administration',
     avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rita',
-    institutionalId: 'DEAN-2012-001',
+    institutionalId: 'ADMIN-2026-001',
+    isOnline: true,
   },
 };
 
+export interface ActiveWorkspaceInfo {
+  teamId?: string;
+  name: string;
+  activityTitle: string;
+  nextMilestoneTitle?: string;
+  nextMilestoneDue?: string;
+  mentorName?: string;
+}
+
 interface AppState {
   currentUser: User;
+  activeWorkspace: ActiveWorkspaceInfo | null;
   notifications: Notification[];
   unreadCount: number;
   sidebarOpen: boolean;
@@ -70,6 +66,7 @@ interface AppState {
   // Actions
   setRole: (role: UserRole) => void;
   setCurrentUser: (user: User) => void;
+  setActiveWorkspace: (ws: ActiveWorkspaceInfo | null) => void;
   setViewportMode: (mode: 'desktop' | 'mobile' | 'tablet') => void;
   markAllRead: () => void;
   addNotification: (n: Notification) => void;
@@ -77,46 +74,27 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
 }
 
+export const DEFAULT_USER: User = {
+  id: '',
+  name: 'Student User',
+  email: '',
+  role: 'STUDENT',
+  department: 'Electronics and Computer Science',
+  avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Student',
+  isOnline: true,
+};
+
 export const useAppStore = create<AppState>((set) => ({
-  currentUser: MOCK_USERS.STUDENT,
+  currentUser: DEFAULT_USER,
+  activeWorkspace: null,
   sidebarOpen: false,
-  unreadCount: 3,
+  unreadCount: 0,
   viewportMode: 'desktop',
-  notifications: [
-    {
-      id: 'notif-001',
-      userId: 'user-student-001',
-      title: 'Milestone Due in 36 Hours',
-      body: 'Hackathon 2026 — Milestone 2 submission is due soon. Demo recording is still pending.',
-      severity: 'URGENT',
-      isRead: false,
-      linkTo: '/projects/team-001/milestones/ms-002/submit',
-      createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    },
-    {
-      id: 'notif-002',
-      userId: 'user-student-001',
-      title: 'Rubric Feedback Available',
-      body: 'Dr. Vance has published feedback on Milestone 1 of your Capstone project.',
-      severity: 'INFO',
-      isRead: false,
-      linkTo: '/projects/team-001',
-      createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    },
-    {
-      id: 'notif-003',
-      userId: 'user-student-001',
-      title: 'Application Accepted',
-      body: 'Congratulations! Your application for the Spring Incubator has been accepted.',
-      severity: 'INFO',
-      isRead: false,
-      linkTo: '/projects/team-001',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    },
-  ],
+  notifications: [],
 
   setRole: (role) => set({ currentUser: MOCK_USERS[role] }),
   setCurrentUser: (user) => set({ currentUser: user }),
+  setActiveWorkspace: (ws) => set({ activeWorkspace: ws }),
   setViewportMode: (mode) => set({ viewportMode: mode }),
   markAllRead: () =>
     set((state) => ({

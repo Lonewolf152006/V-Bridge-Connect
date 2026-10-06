@@ -4,9 +4,7 @@
 
 export type UserRole =
   | 'STUDENT'
-  | 'FACULTY_MENTOR'
   | 'COORDINATOR'
-  | 'EXTERNAL_REVIEWER'
   | 'INDUSTRY_PARTNER'
   | 'SUPER_ADMIN';
 
@@ -98,6 +96,12 @@ export interface Team {
   mentor?: User;
   riskLevel: TeamRiskLevel;
   riskReason?: string;
+  projectTitle?: string;
+  projectDescription?: string;
+  projectDomain?: string;
+  projectSource?: 'faculty_assigned' | 'industry_offered' | 'student_proposed';
+  projectStatus?: 'proposed' | 'approved' | 'in_progress' | 'completed';
+  industryMentorName?: string;
   createdAt: string;
 }
 
@@ -197,7 +201,7 @@ export interface Certificate {
   externalProvider?: string;
   uploadReceiptUrl?: string;
   isVerifiedByFaculty?: boolean;
-  disclaimer: string;
+  disclaimer?: string;
 }
 
 export type ChannelType = 'TEAM_WORKSPACE' | 'DIRECT' | 'ANNOUNCEMENT' | 'OFFICE_HOURS';

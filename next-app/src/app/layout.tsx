@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DesktopShell } from "@/layouts/DesktopShell";
-import { PresentationControlPanel } from "@/components/dev/PresentationControlPanel";
+import { SessionProvider } from "@/components/common/SessionProvider";
+import { SessionSync } from "@/components/common/SessionSync";
+import { ToastProvider } from "@/components/common/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +32,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 font-sans text-slate-900">
-        <DesktopShell>{children}</DesktopShell>
-        <PresentationControlPanel />
+        <SessionProvider>
+          <SessionSync />
+          <ToastProvider>
+            <DesktopShell>{children}</DesktopShell>
+          </ToastProvider>
+        </SessionProvider>
       </body>
     </html>
   );

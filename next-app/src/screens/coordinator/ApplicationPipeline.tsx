@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { Badge } from '@components/common/Badge';
@@ -20,14 +20,44 @@ import { getApplicationBadge } from '@lib/utils';
 export const ApplicationPipeline: React.FC = () => {
   const [applications, setApplications] = useState(MOCK_APPLICATIONS);
   const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus | 'ALL'>('ALL');
+  const [loading, setLoading] = useState(false);
   const activity = MOCK_ACTIVITIES[0];
 
-  const handleUpdateStatus = (appId: string, newStatus: ApplicationStatus) => {
+  useEffect(() => {
+    async function loadApplications() {
+      try {
+        const res = await fetch('/api/v1/applications');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+            setApplications(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Using default demo applications:', err);
+      }
+    }
+    loadApplications();
+  }, []);
+
+  const handleUpdateStatus = async (appId: string, newStatus: ApplicationStatus) => {
+    // 1. Optimistic UI update
     setApplications((prev) =>
       prev.map((app) =>
         app.id === appId ? { ...app, status: newStatus } : app
       )
     );
+
+    // 2. Dispatch state machine verb to backend
+    const verb = newStatus === 'ACCEPTED' ? 'accept' : newStatus === 'REJECTED' ? 'reject' : 'waitlist';
+    try {
+      await fetch(`/api/v1/applications/${appId}/${verb}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (err) {
+      console.warn(`[Pipeline] Offline/mock mode fallback for application ${appId} -> ${verb}`);
+    }
   };
 
   const filtered = applications.filter(

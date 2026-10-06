@@ -33,19 +33,19 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Overview',
     to: '/dashboard',
     icon: LayoutDashboard,
-    roles: ['STUDENT'],
+    roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
   },
   {
     label: 'Opportunities',
     to: '/activities',
     icon: Compass,
-    roles: ['STUDENT', 'FACULTY_MENTOR', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
+    roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
   },
   {
     label: 'Workspace Hub',
-    to: '/projects/team-001',
+    to: '/projects/team-mini-6',
     icon: FolderGit2,
-    roles: ['STUDENT', 'FACULTY_MENTOR', 'INDUSTRY_PARTNER'],
+    roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER'],
     badge: 'Live',
   },
   {
@@ -58,19 +58,19 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Messages',
     to: '/messages',
     icon: MessageSquare,
-    roles: ['STUDENT', 'FACULTY_MENTOR', 'COORDINATOR'],
+    roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER'],
   },
   {
-    label: 'Cohort Health',
-    to: '/mentor/dashboard',
-    icon: LayoutDashboard,
-    roles: ['FACULTY_MENTOR'],
+    label: 'Mentored Groups',
+    to: '/coordinator/dashboard',
+    icon: Users2,
+    roles: ['COORDINATOR', 'INDUSTRY_PARTNER'],
   },
   {
     label: 'Rubric Grading',
-    to: '/mentor/submissions/sub-001-v2/grade',
+    to: '/coordinator/grading',
     icon: ClipboardCheck,
-    roles: ['FACULTY_MENTOR', 'EXTERNAL_REVIEWER'],
+    roles: ['COORDINATOR'],
     badge: '1 pending',
   },
   {
@@ -78,13 +78,6 @@ const NAV_ITEMS: SidebarItem[] = [
     to: '/coordinator/activities',
     icon: FilePlus,
     roles: ['COORDINATOR'],
-  },
-  {
-    label: 'Applications',
-    to: '/coordinator/activities/activity-001/applications',
-    icon: Users2,
-    roles: ['COORDINATOR'],
-    badge: '12 new',
   },
   {
     label: 'Directory & Roles',
@@ -101,7 +94,7 @@ const NAV_ITEMS: SidebarItem[] = [
 ];
 
 export const Sidebar: React.FC = () => {
-  const { currentUser, sidebarOpen, toggleSidebar } = useAppStore();
+  const { currentUser, activeWorkspace, sidebarOpen, toggleSidebar } = useAppStore();
   const pathname = usePathname();
 
   const accessibleItems = NAV_ITEMS.filter((item) =>
@@ -136,18 +129,40 @@ export const Sidebar: React.FC = () => {
             </button>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Active Workspace
+          {activeWorkspace ? (
+            <Link
+              href={activeWorkspace.teamId ? `/projects/${activeWorkspace.teamId}` : '/dashboard'}
+              className="block p-3 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-200 transition-all group"
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 group-hover:text-indigo-600">
+                Active Workspace
+              </div>
+              <div className="text-xs font-bold text-slate-800 truncate mt-0.5 group-hover:text-indigo-900">
+                {activeWorkspace.name}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500 truncate">
+                {activeWorkspace.activityTitle}
+              </div>
+              {activeWorkspace.mentorName && (
+                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-500">
+                  <span className="truncate">Guide: {activeWorkspace.mentorName}</span>
+                  <span className="font-semibold text-emerald-600 shrink-0">Active</span>
+                </div>
+              )}
+            </Link>
+          ) : (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Institutional Portal
+              </div>
+              <div className="text-xs font-bold text-slate-800 truncate mt-0.5">
+                Vidyalankar Institute
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500 truncate">
+                {currentUser.department || 'Electronics and Computer Science'}
+              </div>
             </div>
-            <div className="text-xs font-bold text-slate-800 truncate mt-0.5">
-              Team NexGen (Hackathon)
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Next: M2 Prototype</span>
-              <span className="font-semibold text-amber-600">36h left</span>
-            </div>
-          </div>
+          )}
 
           <nav className="space-y-1">
             <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -155,12 +170,15 @@ export const Sidebar: React.FC = () => {
             </div>
             {accessibleItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.to;
+              const targetUrl = item.to === '/projects/team-mini-6'
+                ? (activeWorkspace?.teamId ? `/projects/${activeWorkspace.teamId}` : '/projects/team-mini-6')
+                : item.to;
+              const isActive = pathname === targetUrl;
 
               return (
                 <Link
                   key={item.to}
-                  href={item.to}
+                  href={targetUrl}
                   onClick={() => {
                     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                       toggleSidebar();

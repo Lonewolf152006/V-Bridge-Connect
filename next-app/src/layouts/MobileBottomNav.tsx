@@ -12,13 +12,11 @@ export interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation = false }) => {
-  const { currentUser } = useAppStore();
+  const { currentUser, activeWorkspace } = useAppStore();
   const pathname = usePathname();
 
   const getHomePath = () => {
     switch (currentUser.role) {
-      case 'FACULTY_MENTOR':
-        return '/mentor/dashboard';
       case 'COORDINATOR':
         return '/coordinator/activities';
       case 'SUPER_ADMIN':
@@ -29,6 +27,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
   };
 
   const homePath = getHomePath();
+  const workspacePath = activeWorkspace?.teamId
+    ? `/projects/${activeWorkspace.teamId}`
+    : '/projects/team-mini-6';
 
   return (
     <nav
@@ -62,7 +63,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
       </Link>
 
       <Link
-        href="/projects/team-001"
+        href={workspacePath}
         className={cn(
           'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
           pathname.startsWith('/projects') ? 'text-indigo-600 font-bold' : 'text-slate-500'

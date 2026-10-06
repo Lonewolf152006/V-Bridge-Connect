@@ -1,9 +1,13 @@
-import { MessagingScreen } from '@/screens/messaging/MessagingScreen';
+import { WorkspaceDiscussionTab } from '@/screens/workspace/WorkspaceDiscussionTab';
 
 export const metadata = {
-  title: 'Unified Communications — VBridgeConnect',
+  title: 'Unified Communications & Slack Messenger — VBridgeConnect',
 };
 
 export default function MessagesPage() {
-  return <MessagingScreen />;
+  return (
+    <div className="py-2">
+      <WorkspaceDiscussionTab />
+    </div>
+  );
 }

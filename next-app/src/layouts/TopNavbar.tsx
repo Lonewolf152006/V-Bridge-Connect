@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import { Bell, Search, Menu, Building2, Check, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { roleLabel, timeAgo, cn } from '@/lib/utils';
+import { InitialsAvatar } from '@components/common/InitialsAvatar';
 
 export interface TopNavbarProps {
   isSimulation?: boolean;
@@ -149,11 +150,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
         </div>
 
         <div className="flex items-center gap-2.5 pl-2 sm:border-l border-slate-200">
-          <img
-            src={currentUser.avatarUrl}
-            alt={currentUser.name}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 bg-slate-100 object-cover"
-          />
+          <InitialsAvatar name={currentUser.name} size="sm" />
           {!isSimulation && (
             <div className="hidden lg:block text-left">
               <p className="text-xs font-bold text-slate-900 leading-tight">

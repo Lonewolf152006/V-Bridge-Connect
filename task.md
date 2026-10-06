@@ -26,17 +26,17 @@ To ensure immediate visual validation and lock in user experience before databas
   - [x] Phase 1.6: Screen Group C — Faculty Mentor & Reviewer Experience (Cohort Risk, Rubric Grading, Messaging)
   - [x] Phase 1.7: Screen Group D — Coordinator & Admin Experience (Activity Builder, Application Pipeline, Directory, Audit Reports)
   - [x] Phase 1.8: Responsive Polish & Mobile Viewport Audit
-- [ ] **Stage 2: Backend Development**
-  - [ ] Phase 2.1: Server Setup & Database Architecture (Prisma + PostgreSQL)
-  - [ ] Phase 2.2: Authentication, Authorization & Scope Middleware
-  - [ ] Phase 2.3: Core Domain Modules & State Machine REST Verbs
-  - [ ] Phase 2.4: Object Storage & S3 Signed Uploads
-  - [ ] Phase 2.5: In-Process Domain Event Bus & Scheduled Jobs
-  - [ ] Phase 2.6: Audit Ledger & Accreditation Reporting Engine
-- [ ] **Stage 3: Integration, Security & QA Verification**
-  - [ ] Phase 3.1: Frontend-to-Backend API Wiring
-  - [ ] Phase 3.2: Verification of PRD Acceptance Criteria (QA-01 to QA-16)
-  - [ ] Phase 3.3: Production Build & Deployment Readiness
+- [x] **Stage 2: Backend Development**
+  - [x] Phase 2.1: Server Setup & Database Architecture (Prisma + Supabase PostgreSQL)
+  - [x] Phase 2.2: Authentication, Authorization & Scope Middleware (NextAuth v5 + JWT + RBAC)
+  - [x] Phase 2.3: Core Domain Modules & State Machine REST Verbs (5 modules + Activity)
+  - [x] Phase 2.4: Object Storage & S3 Signed Uploads (AWS S3 Presigned URLs)
+  - [x] Phase 2.5: In-Process Domain Event Bus & Scheduled Jobs
+  - [x] Phase 2.6: Audit Ledger & Accreditation Reporting Engine
+- [x] **Stage 3: Integration, Security & QA Verification**
+  - [x] Phase 3.1: Frontend-to-Backend API Wiring
+  - [x] Phase 3.2: Verification of PRD Acceptance Criteria (QA-01 to QA-16)
+  - [x] Phase 3.3: Production Build & Deployment Readiness
 
 ---
 
@@ -253,26 +253,26 @@ To ensure immediate visual validation and lock in user experience before databas
 ### STAGE 3: INTEGRATION, SECURITY & QA VERIFICATION
 
 #### Phase 3.1: Frontend-to-Backend API Wiring
-- [ ] **TASK-INT-001**: API Client Connection
+- [x] **TASK-INT-001**: API Client Connection
   - Replace frontend mock repository with Axios/Fetch client targeting `/api/v1/*`.
   - Configure automatic JWT header injection and token refresh interceptors.
-- [ ] **TASK-INT-002**: File Upload End-to-End Flow
+- [x] **TASK-INT-002**: File Upload End-to-End Flow
   - Test client request for presigned S3 URL -> direct upload to storage -> notify backend of completed upload.
 
 #### Phase 3.2: Verification of PRD Acceptance Criteria (QA-01 to QA-16)
-- [ ] **TASK-INT-003**: State Machine Transitions Test (QA-01 to QA-05)
+- [x] **TASK-INT-003**: State Machine Transitions Test (QA-01 to QA-05)
   - Verify invalid transitions are rejected by API with HTTP 400/409.
-- [ ] **TASK-INT-004**: Capacity & Concurrency Test (QA-10)
+- [x] **TASK-INT-004**: Capacity & Concurrency Test (QA-10)
   - Simulate concurrent applications filling the final available seat; verify no overselling occurs.
-- [ ] **TASK-INT-005**: Scope Boundary & Privacy Test (QA-11, FR-092)
+- [x] **TASK-INT-005**: Scope Boundary & Privacy Test (QA-11, FR-092)
   - Verify Industry Partner cannot query student grades or private faculty remarks.
-- [ ] **TASK-INT-006**: Certificate Ledger & Self-Reported Isolation Test (QA-14, FR-114, FR-115)
+- [x] **TASK-INT-006**: Certificate Ledger & Self-Reported Isolation Test (QA-14, FR-114, FR-115)
   - Verify self-reported certificates cannot be verified via the official registrar endpoint and do not appear in official accreditation reports.
-- [ ] **TASK-INT-007**: Audit Trail Completeness Test (QA-12)
+- [x] **TASK-INT-007**: Audit Trail Completeness Test (QA-12)
   - Verify every milestone transition and rubric publication generates an immutable audit record.
 
 #### Phase 3.3: Production Build & Deployment Readiness
-- [ ] **TASK-INT-008**: Build Validation
+- [x] **TASK-INT-008**: Build Validation
   - Run `npm run build` on both frontend and backend to verify zero TypeScript errors and bundle size compliance.
-- [ ] **TASK-INT-009**: Documentation & Runbook
+- [x] **TASK-INT-009**: Documentation & Runbook
   - Finalize local development instructions and environment variable templates (`.env.example`).

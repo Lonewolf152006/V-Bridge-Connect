@@ -37,3 +37,12 @@ Thumbs.db
 *.swo
 .vscode/
 .idea/
+
+# Secrets and credentials
+client_secret*.json
+*.pem
+credentials*.json
+
+# Agent skills cache
+.agents/
+skills-lock.json

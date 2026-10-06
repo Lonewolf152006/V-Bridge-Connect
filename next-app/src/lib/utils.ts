@@ -148,11 +148,13 @@ export function capacityPercent(filled: number, total: number): number {
 export function roleLabel(role: string): string {
   const map: Record<string, string> = {
     STUDENT: 'Student',
-    FACULTY_MENTOR: 'Faculty Mentor',
+    student: 'Student',
     COORDINATOR: 'Coordinator',
-    EXTERNAL_REVIEWER: 'External Reviewer',
+    coordinator: 'Coordinator',
     INDUSTRY_PARTNER: 'Industry Partner',
+    industry_partner: 'Industry Partner',
     SUPER_ADMIN: 'Dean / Admin',
+    super_admin: 'Dean / Admin',
   };
   return map[role] ?? role;
 }

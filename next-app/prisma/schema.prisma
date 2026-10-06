@@ -1,0 +1,578 @@
+// VBridgeConnect — Prisma Schema
+// Matches PRD Section 9 state machines and architecture.md §7 data conventions.
+// Roles: student, coordinator, industry_partner, super_admin
+// (FACULTY_MENTOR and EXTERNAL_REVIEWER removed per project decision)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums (values match PRD §9 state names exactly) ───────────────────────
+
+enum UserRole {
+  student
+  coordinator
+  industry_partner
+  super_admin
+}
+
+enum ActivityStatus {
+  draft
+  awaiting_approval
+  published
+  applications_closed
+  active
+  under_final_review
+  completed
+  cancelled
+  archived
+}
+
+enum ApplicationStatus {
+  draft
+  submitted
+  under_review
+  shortlisted
+  selected
+  waitlisted
+  rejected
+  withdrawn
+}
+
+enum MilestoneStatus {
+  not_started
+  in_progress
+  blocked
+  submitted
+  changes_requested
+  accepted
+  overdue
+  waived
+}
+
+enum SubmissionStatus {
+  draft
+  submitted
+  under_review
+  changes_requested
+  accepted
+  invalid
+  evaluated
+}
+
+enum TeamRiskStatus {
+  on_track
+  watch
+  at_risk
+  blocked
+}
+
+enum CertificateType {
+  platform_issued
+  self_reported
+}
+
+enum CertificateStatus {
+  not_eligible
+  eligible
+  issued
+  revoked
+  posted
+  removed
+}
+
+enum ConversationType {
+  group
+  direct
+}
+
+enum TeamMemberRole {
+  lead
+  contributor
+}
+
+enum ProjectProposalStatus {
+  pending
+  approved
+  changes_requested
+  rejected
+}
+
+// ─── Core Entities ─────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  name          String
+  role          UserRole
+  departmentId  String?  @db.Uuid
+  avatarUrl     String?
+  institutionalId String?
+  passwordHash  String?
+  facultyCode   String?  @unique
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  department    Department? @relation(fields: [departmentId], references: [id])
+
+  // Relations
+  ownedActivities     Activity[]       @relation("ActivityOwner")
+  applications        Application[]    @relation("Applicant")
+  reviewedApplications Application[]   @relation("ApplicationReviewer")
+  teamMemberships     TeamMembership[]
+  guidedTeams         Team[]           @relation("FacultyGuide")
+  industryTeams       Team[]           @relation("IndustryGuide")
+  claimedRosterInvitations RosterInvitation[] @relation("ClaimedRoster")
+  submittedSubmissions Submission[]     @relation("Submitter")
+  reviewedSubmissions  Submission[]     @relation("SubmissionReviewer")
+  submittedProposals   ProjectProposal[] @relation("ProposalSubmitter")
+  reviewedProposals    ProjectProposal[] @relation("ProposalReviewer")
+  createdProjectOfferings ProjectOffering[] @relation("ProjectOfferingCreator")
+  certificates        Certificate[]    @relation("CertificateHolder")
+  revokedCertificates Certificate[]    @relation("CertificateRevoker")
+  sentMessages        Message[]
+  notifications       Notification[]
+  auditEvents         AuditEvent[]     @relation("AuditActor")
+  conversationParticipations ConversationParticipant[]
+
+  @@map("users")
+}
+
+model College {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  code        String   @unique
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  departments Department[]
+
+  @@map("colleges")
+}
+
+model Department {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  code        String   @unique
+  collegeId   String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  college     College    @relation(fields: [collegeId], references: [id])
+  users       User[]
+  activities  Activity[]
+  terms       Term[]
+
+  @@map("departments")
+}
+
+model Term {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  startDate    DateTime @db.Timestamptz
+  endDate      DateTime @db.Timestamptz
+  departmentId String   @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz
+  updatedAt    DateTime @updatedAt @db.Timestamptz
+
+  department   Department @relation(fields: [departmentId], references: [id])
+  activities   Activity[]
+
+  @@map("terms")
+}
+
+// ─── Activity Module (FR-001 to FR-007) ────────────────────────────────────
+
+model Activity {
+  id                    String         @id @default(uuid()) @db.Uuid
+  title                 String
+  description           String
+  type                  String         // project, assignment, event, competition, club, research, internship
+  status                ActivityStatus @default(draft)
+  departmentId          String         @db.Uuid
+  termId                String?        @db.Uuid
+  ownerId               String         @db.Uuid
+  capacity              Int
+  filledSeats           Int            @default(0)
+  teamSizeMin           Int            @default(1)
+  teamSizeMax           Int            @default(5)
+  applicationDeadline   DateTime?      @db.Timestamptz
+  startDate             DateTime?      @db.Timestamptz
+  endDate               DateTime?      @db.Timestamptz
+  visibility            String         @default("department") // department, college, public
+  eligibility           Json?          // prerequisites, min GPA, etc.
+  participationMode     String         @default("team") // individual, pre_formed_team, team_after_selection, open_registration
+  autoActivateOnClose   Boolean        @default(false)
+  certificateEligible   Boolean        @default(true)
+  cancellationReason    String?
+  archiveReason         String?
+  createdAt             DateTime       @default(now()) @db.Timestamptz
+  updatedAt             DateTime       @updatedAt @db.Timestamptz
+
+  department    Department     @relation(fields: [departmentId], references: [id])
+  term          Term?          @relation(fields: [termId], references: [id])
+  owner         User           @relation("ActivityOwner", fields: [ownerId], references: [id])
+
+  applications  Application[]
+  teams         Team[]
+  milestones    Milestone[]
+  certificates  Certificate[]
+  conversations Conversation[]
+  rosterInvitations RosterInvitation[]
+  proposals     ProjectProposal[]
+  projectOfferings ProjectOffering[]
+
+  @@map("activities")
+}
+
+// ─── Application Module (FR-010 to FR-015) ─────────────────────────────────
+
+model Application {
+  id              String            @id @default(uuid()) @db.Uuid
+  activityId      String            @db.Uuid
+  applicantId     String            @db.Uuid
+  teamId          String?           @db.Uuid  // if applying as a team
+  status          ApplicationStatus @default(draft)
+  answers         Json?             // application form answers
+  statementOfPurpose String?
+  portfolioUrl    String?
+  reviewerId      String?           @db.Uuid
+  reviewerNote    String?           // internal reviewer note (FR-064 — never shown to applicant)
+  decisionNote    String?           // approved-for-release comment (FR-014)
+  withdrawalReason String?
+  rejectionReason  String?
+  createdAt       DateTime          @default(now()) @db.Timestamptz
+  updatedAt       DateTime          @updatedAt @db.Timestamptz
+
+  activity        Activity @relation(fields: [activityId], references: [id])
+  applicant       User     @relation("Applicant", fields: [applicantId], references: [id])
+  reviewer        User?    @relation("ApplicationReviewer", fields: [reviewerId], references: [id])
+  team            Team?    @relation(fields: [teamId], references: [id])
+
+  @@unique([activityId, applicantId])
+  @@map("applications")
+}
+
+// ─── Team Module (FR-020 to FR-024) ────────────────────────────────────────
+
+model Team {
+  id              String         @id @default(uuid()) @db.Uuid
+  activityId      String         @db.Uuid
+  name            String
+  mentorId        String?        @db.Uuid
+  industryMentorId String?       @db.Uuid
+  projectTitle    String?
+  projectDescription String?
+  projectSource   String?        // 'faculty_assigned' | 'industry_offered' | 'student_proposed'
+  projectDomain   String?
+  projectStatus   String?        // 'proposed' | 'approved' | 'in_progress' | 'completed'
+  riskStatus      TeamRiskStatus @default(on_track)
+  riskReason      String?
+  lastActivityAt  DateTime?      @db.Timestamptz
+  inactivityWindowDays Int       @default(7)
+  createdAt       DateTime       @default(now()) @db.Timestamptz
+  updatedAt       DateTime       @updatedAt @db.Timestamptz
+
+  activity        Activity         @relation(fields: [activityId], references: [id])
+  mentor          User?            @relation("FacultyGuide", fields: [mentorId], references: [id])
+  industryMentor  User?            @relation("IndustryGuide", fields: [industryMentorId], references: [id])
+  members         TeamMembership[]
+  applications    Application[]
+  milestones      Milestone[]
+  submissions     Submission[]
+  conversations   Conversation[]
+  rosterInvitations RosterInvitation[]
+  proposals       ProjectProposal[]
+  assignedOffering ProjectOffering?
+
+  @@map("teams")
+}
+
+model TeamMembership {
+  id          String         @id @default(uuid()) @db.Uuid
+  teamId      String         @db.Uuid
+  userId      String         @db.Uuid
+  role        TeamMemberRole @default(contributor)
+  reason      String?        // FR-023: recorded reason for membership changes
+  joinedAt    DateTime       @default(now()) @db.Timestamptz
+  removedAt   DateTime?      @db.Timestamptz
+  removeReason String?
+  createdAt   DateTime       @default(now()) @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @db.Timestamptz
+
+  team        Team @relation(fields: [teamId], references: [id])
+  user        User @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId, removedAt])
+  @@map("team_memberships")
+}
+
+// ─── Milestone Module (FR-040 to FR-045) ───────────────────────────────────
+
+model Milestone {
+  id                  String          @id @default(uuid()) @db.Uuid
+  activityId          String          @db.Uuid
+  teamId              String?         @db.Uuid
+  title               String
+  description         String
+  stageNumber         Int
+  status              MilestoneStatus @default(not_started)
+  dueDate             DateTime        @db.Timestamptz
+  effectiveDueDate    DateTime?       @db.Timestamptz  // after extensions
+  weightage           Int             @default(0)       // percentage weight
+  deliverableType     String          @default("any")
+  requiresMentorReview Boolean        @default(true)
+  blockReason         String?
+  blockCategory       String?
+  waiveReason         String?
+  extensionReason     String?
+  createdAt           DateTime        @default(now()) @db.Timestamptz
+  updatedAt           DateTime        @updatedAt @db.Timestamptz
+
+  activity            Activity     @relation(fields: [activityId], references: [id])
+  team                Team?        @relation(fields: [teamId], references: [id])
+  submissions         Submission[]
+
+  @@map("milestones")
+}
+
+// ─── Submission Module (FR-050 to FR-055) ──────────────────────────────────
+
+model Submission {
+  id                  String           @id @default(uuid()) @db.Uuid
+  milestoneId         String           @db.Uuid
+  teamId              String           @db.Uuid
+  submittedById       String           @db.Uuid
+  version             Int
+  status              SubmissionStatus @default(draft)
+  fileUrl             String?
+  fileName            String?
+  fileSizeBytes       Int?
+  checksumSha256      String?
+  externalUrl         String?          // GitHub, demo link, etc.
+  studentNote         String?
+  lateSubmissionReason String?
+  // Review fields
+  reviewerId          String?          @db.Uuid
+  reviewerPublicFeedback String?       // FR-064: student-visible
+  reviewerPrivateNote    String?       // FR-064: never shown to student
+  reviewedAt          DateTime?        @db.Timestamptz
+  // Rubric evaluation
+  rubricScores        Json?            // [{criterionId, score, evaluatorId}]
+  totalScore          Float?
+  maxScore            Float?
+  createdAt           DateTime         @default(now()) @db.Timestamptz
+  updatedAt           DateTime         @updatedAt @db.Timestamptz
+
+  milestone           Milestone @relation(fields: [milestoneId], references: [id])
+  team                Team      @relation(fields: [teamId], references: [id])
+  submittedBy         User      @relation("Submitter", fields: [submittedById], references: [id])
+  reviewer            User?     @relation("SubmissionReviewer", fields: [reviewerId], references: [id])
+
+  // FR-052: Immutable — unique version per milestone
+  @@unique([milestoneId, version])
+  @@map("submissions")
+}
+
+// ─── Certificate Module (FR-110 to FR-117) ─────────────────────────────────
+
+model Certificate {
+  id                String            @id @default(uuid()) @db.Uuid
+  type              CertificateType
+  status            CertificateStatus @default(not_eligible)
+  studentId         String            @db.Uuid
+  activityId        String?           @db.Uuid
+  activityTitle     String
+  issueDate         DateTime?         @db.Timestamptz
+  // Platform-issued fields
+  verificationHash  String?           @unique
+  issuedById        String?           @db.Uuid
+  // Self-reported fields (FR-112)
+  externalProvider  String?
+  externalFileUrl   String?
+  // Revocation (FR-116)
+  revokedById       String?           @db.Uuid
+  revokedAt         DateTime?         @db.Timestamptz
+  revocationReason  String?
+  createdAt         DateTime          @default(now()) @db.Timestamptz
+  updatedAt         DateTime          @updatedAt @db.Timestamptz
+
+  student           User      @relation("CertificateHolder", fields: [studentId], references: [id])
+  activity          Activity? @relation(fields: [activityId], references: [id])
+  revokedBy         User?     @relation("CertificateRevoker", fields: [revokedById], references: [id])
+
+  @@map("certificates")
+}
+
+// ─── Messaging Module (FR-120 to FR-126) ───────────────────────────────────
+
+model Conversation {
+  id             String           @id @default(uuid()) @db.Uuid
+  type           ConversationType
+  name           String?
+  activityId     String?          @db.Uuid
+  teamId         String?          @db.Uuid
+  retentionDays  Int?             // institution-set retention window (FR-124)
+  createdAt      DateTime         @default(now()) @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @db.Timestamptz
+
+  activity       Activity?                 @relation(fields: [activityId], references: [id])
+  team           Team?                     @relation(fields: [teamId], references: [id])
+  participants   ConversationParticipant[]
+  messages       Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id               String    @id @default(uuid()) @db.Uuid
+  conversationId   String    @db.Uuid
+  userId           String    @db.Uuid
+  joinedAt         DateTime  @default(now()) @db.Timestamptz
+  removedAt        DateTime? @db.Timestamptz  // FR-123: window check, never delete
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @db.Timestamptz
+
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  user             User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId, removedAt])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id               String    @id @default(uuid()) @db.Uuid
+  conversationId   String    @db.Uuid
+  senderId         String    @db.Uuid
+  content          String
+  attachmentUrl    String?
+  attachmentName   String?
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @db.Timestamptz
+
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  sender           User         @relation(fields: [senderId], references: [id])
+
+  // Messages are never deleted (FR-123)
+  @@map("messages")
+}
+
+// ─── Notification Module ───────────────────────────────────────────────────
+
+model Notification {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  title       String
+  body        String
+  severity    String   @default("info") // info, warning, urgent
+  isRead      Boolean  @default(false)
+  linkTo      String?
+  entityType  String?
+  entityId    String?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  user        User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── Audit Module ──────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @db.Uuid  // null = system-originated
+  entityType  String
+  entityId    String
+  action      String
+  priorValue  Json?
+  newValue    Json?
+  reason      String?
+  ipAddress   String?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  actor       User?    @relation("AuditActor", fields: [actorId], references: [id])
+
+  // Audit events are immutable — no updatedAt, no delete
+  @@map("audit_events")
+}
+
+// ─── Roster Invitation Module (Automated Cohort Onboarding) ────────────────
+
+model RosterInvitation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  activityId         String    @db.Uuid
+  teamId             String    @db.Uuid
+  email              String
+  name               String?
+  role               String    // 'student_lead' | 'student_member' | 'faculty_mentor'
+  facultyMentorEmail String?
+  claimed            Boolean   @default(false)
+  claimedAt          DateTime? @db.Timestamptz
+  claimedById        String?   @db.Uuid
+  createdAt          DateTime  @default(now()) @db.Timestamptz
+
+  activity           Activity  @relation(fields: [activityId], references: [id])
+  team               Team      @relation(fields: [teamId], references: [id])
+  claimedBy          User?     @relation("ClaimedRoster", fields: [claimedById], references: [id])
+
+  @@unique([teamId, email])
+  @@index([email, claimed])
+  @@map("roster_invitations")
+}
+
+// ─── Project Proposals & Offerings (Student Proposal & Faculty/Industry Offering) ──
+
+model ProjectProposal {
+  id                String                @id @default(uuid()) @db.Uuid
+  teamId            String                @db.Uuid
+  activityId        String                @db.Uuid
+  submittedById     String                @db.Uuid
+  title             String
+  problemStatement  String
+  techStack         String?               // e.g. "React, Node.js, Arduino, LoRa"
+  domain            String?               // e.g. "IoT / Embedded", "AI / ML", "Cybersecurity", "Web / Cloud"
+  objectives        String?
+  status            ProjectProposalStatus @default(pending)
+  feedback          String?               // Faculty / Reviewer feedback or reason
+  reviewedById      String?               @db.Uuid
+  reviewedAt        DateTime?             @db.Timestamptz
+  createdAt         DateTime              @default(now()) @db.Timestamptz
+  updatedAt         DateTime              @updatedAt @db.Timestamptz
+
+  team              Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  activity          Activity              @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  submittedBy       User                  @relation("ProposalSubmitter", fields: [submittedById], references: [id])
+  reviewedBy        User?                 @relation("ProposalReviewer", fields: [reviewedById], references: [id])
+
+  @@index([teamId, status])
+  @@map("project_proposals")
+}
+
+model ProjectOffering {
+  id              String    @id @default(uuid()) @db.Uuid
+  activityId      String    @db.Uuid
+  createdById     String    @db.Uuid
+  title           String
+  description     String
+  domain          String?   // "IoT", "AI/ML", "Embedded Systems", etc.
+  prerequisites   String?
+  sourceType      String    // 'faculty' | 'industry'
+  companyName     String?   // if industry expert
+  assignedTeamId  String?   @unique @db.Uuid // if assigned to a specific group
+  createdAt       DateTime  @default(now()) @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @db.Timestamptz
+
+  activity        Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy       User      @relation("ProjectOfferingCreator", fields: [createdById], references: [id])
+  assignedTeam    Team?     @relation(fields: [assignedTeamId], references: [id])
+
+  @@map("project_offerings")
+}
+

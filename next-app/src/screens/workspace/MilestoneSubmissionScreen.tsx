@@ -36,16 +36,28 @@ export const MilestoneSubmissionScreen: React.FC = () => {
   const milestone =
     MOCK_MILESTONES.find((m) => m.id === milestoneId) || MOCK_MILESTONES[1];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    try {
+      await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamId: team.id,
+          milestoneId: milestone.id,
+          externalUrl: githubUrl || demoUrl,
+          studentNote,
+        }),
+      });
+    } catch (err) {
+      console.error('Submission error:', err);
+    }
+    setSubmitting(false);
+    setSuccess(true);
     setTimeout(() => {
-      setSubmitting(false);
-      setSuccess(true);
-      setTimeout(() => {
-        router.push(`/projects/${team.id}`);
-      }, 1500);
-    }, 1000);
+      router.push(`/projects/${team.id}`);
+    }, 1500);
   };
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
@@ -17,7 +17,6 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { MOCK_CERTIFICATES } from '@services/mockData';
 import type { Certificate } from '@/types';
 import { formatDate } from '@lib/utils';
 
@@ -27,8 +26,34 @@ export const CertificateHub: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
 
-  const officialCerts = MOCK_CERTIFICATES.filter((c) => c.type === 'PLATFORM_ISSUED');
-  const externalCerts = MOCK_CERTIFICATES.filter((c) => c.type === 'SELF_REPORTED');
+  // Live certificates from database
+  const [certs, setCerts] = useState<Certificate[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [newProvider, setNewProvider] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCerts() {
+      try {
+        const res = await fetch('/api/certificates');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0 && isMounted) {
+            setCerts(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load certificates from API:', err);
+      }
+    }
+    loadCerts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const officialCerts = certs.filter((c) => c.type === 'PLATFORM_ISSUED');
+  const externalCerts = certs.filter((c) => c.type === 'SELF_REPORTED');
 
   const copyHash = (hash: string) => {
     navigator.clipboard.writeText(hash);
@@ -97,85 +122,99 @@ export const CertificateHub: React.FC = () => {
 
       {/* ─── OFFICIAL TAB CONTENT ─── */}
       {activeTab === 'OFFICIAL' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {officialCerts.map((cert) => (
-            <Card
-              key={cert.id}
-              hoverEffect
-              padding="lg"
-              className="border-slate-200/90 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                {/* Header Badge */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Cryptographically Signed</span>
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">
-                    Issued: {formatDate(cert.issueDate)}
-                  </span>
-                </div>
-
-                {/* Title */}
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 font-display leading-snug">
-                    {cert.activityTitle}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Signatories: {cert.signatories?.join(', ')}
-                  </p>
-                </div>
-
-                {/* SHA-256 Ledger Box */}
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                    <span>Ledger Hash (SHA-256)</span>
-                    <button
-                      onClick={() => cert.verificationHash && copyHash(cert.verificationHash)}
-                      className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                    >
-                      {copiedHash ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span className="text-emerald-600">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
+        officialCerts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {officialCerts.map((cert) => (
+              <Card
+                key={cert.id}
+                hoverEffect
+                padding="lg"
+                className="border-slate-200/90 flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  {/* Header Badge */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Cryptographically Signed</span>
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      Issued: {formatDate(cert.issueDate)}
+                    </span>
                   </div>
-                  <div className="text-[11px] font-mono text-slate-700 truncate bg-white px-2 py-1 rounded border border-slate-200">
-                    {cert.verificationHash}
+
+                  {/* Title */}
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 font-display leading-snug">
+                      {cert.activityTitle}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Signatories: {cert.signatories?.join(', ')}
+                    </p>
+                  </div>
+
+                  {/* SHA-256 Ledger Box */}
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>Ledger Hash (SHA-256)</span>
+                      <button
+                        onClick={() => cert.verificationHash && copyHash(cert.verificationHash)}
+                        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                      >
+                        {copiedHash ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-[11px] font-mono text-slate-700 truncate bg-white px-2 py-1 rounded border border-slate-200">
+                      {cert.verificationHash}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leftIcon={<QrCode className="w-4 h-4" />}
-                  onClick={() => setVerifyModalCert(cert)}
-                >
-                  Verify QR
-                </Button>
+                {/* Actions */}
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<QrCode className="w-4 h-4" />}
+                    onClick={() => setVerifyModalCert(cert)}
+                  >
+                    Verify QR
+                  </Button>
 
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Download className="w-4 h-4" />}
-                >
-                  Download PDF
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Download className="w-4 h-4" />}
+                  >
+                    Download PDF
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card padding="lg" className="text-center py-12 border-dashed border-2 border-slate-200">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+              <Award className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 font-display">
+              No Official Certificates Issued Yet
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              Institutional verified credentials are issued and immutably recorded upon successful completion and faculty sign-off.
+            </p>
+          </Card>
+        )
       )}
 
       {/* ─── SELF-REPORTED TAB CONTENT (FR-115) ─── */}
@@ -193,45 +232,55 @@ export const CertificateHub: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {externalCerts.map((cert) => (
-              <Card
-                key={cert.id}
-                hoverEffect
-                padding="lg"
-                className="border-slate-200/90 flex flex-col justify-between"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
-                      Self-Reported
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      Reported: {formatDate(cert.issueDate)}
-                    </span>
+            {externalCerts.length > 0 ? (
+              externalCerts.map((cert) => (
+                <Card
+                  key={cert.id}
+                  hoverEffect
+                  padding="lg"
+                  className="border-slate-200/90 flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+                        Self-Reported
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        Reported: {formatDate(cert.issueDate)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 font-display">
+                        {cert.activityTitle}
+                      </h3>
+                      <p className="text-xs text-indigo-600 font-medium mt-1">
+                        Provider: {cert.externalProvider}
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/60 text-xs text-amber-900">
+                      {cert.disclaimer}
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 font-display">
-                      {cert.activityTitle}
-                    </h3>
-                    <p className="text-xs text-indigo-600 font-medium mt-1">
-                      Provider: {cert.externalProvider}
-                    </p>
+                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Faculty Review: Pending</span>
+                    <Button variant="outline" size="sm" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
+                      View Uploaded Receipt
+                    </Button>
                   </div>
-
-                  <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/60 text-xs text-amber-900">
-                    {cert.disclaimer}
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Faculty Review: Pending</span>
-                  <Button variant="outline" size="sm" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
-                    View Uploaded Receipt
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12 bg-white rounded-2xl border-dashed border-2 border-slate-200 p-6">
+                <FileCheck className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <h4 className="text-sm font-bold text-slate-700 font-display">No External Certificates Uploaded</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                  Click &apos;Self-Report External Cert&apos; to submit an external certification for departmental records.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -289,9 +338,30 @@ export const CertificateHub: React.FC = () => {
         maxWidth="md"
       >
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
+            try {
+              const res = await fetch('/api/certificates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  activityTitle: newTitle,
+                  externalProvider: newProvider,
+                  type: 'SELF_REPORTED',
+                }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.data) {
+                  setCerts((prev) => [data.data, ...prev]);
+                }
+              }
+            } catch (err) {
+              console.error('Failed to submit external certificate:', err);
+            }
             setShowUploadModal(false);
+            setNewTitle('');
+            setNewProvider('');
           }}
           className="space-y-4"
         >
@@ -302,6 +372,8 @@ export const CertificateHub: React.FC = () => {
             <input
               type="text"
               required
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
               placeholder="e.g. AWS Certified Solutions Architect"
               className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
             />
@@ -314,6 +386,8 @@ export const CertificateHub: React.FC = () => {
             <input
               type="text"
               required
+              value={newProvider}
+              onChange={(e) => setNewProvider(e.target.value)}
               placeholder="e.g. Amazon Web Services, Coursera, Kaggle"
               className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200"
             />

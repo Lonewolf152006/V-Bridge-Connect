@@ -142,7 +142,12 @@ The official Information Architecture Map establishes how every screen links acr
 | **1. Frontend Build (Vite)** | Phase 1.1 – 1.8: Components & Screens | **COMPLETED** | All 14 screens, 9-tab Workspace Hub, standalone Vite frontend built and tested. |
 | **1.5 Unified Next.js Migration** | Full-Stack Porting (`next-app/`) | **COMPLETED** | All 14 screens, components, layouts, Presentation Control Panel, and App Router pages ported into Next.js App Router (`next-app/`). |
 | **2. Backend API Handlers** | Next.js API Routes (`/app/api/*`) | **COMPLETED & OPERATIONAL** | `/api/auth`, `/api/activities`, `/api/submissions`, `/api/certificates` live and tested. |
-| **2.1 Database & Persistence** | PostgreSQL + Prisma ORM setup | **READY TO PROCEED** | Wire database schema with Prisma migrations and persistent database connection. |
+| **2.1 Database & Persistence** | Supabase PostgreSQL + Prisma ORM | **LIVE & SYNCED** | Connected to Supabase `nionpjxfbrafuhdpxrmi` via connection pooler (`aws-0-ap-south-1.pooler.supabase.com`). All tables pushed, Prisma Client synced, tested live. Supabase agent skills installed. |
+| **2.2 Domain Modules & State Machines** | 5 Modules (Submission, Application, Team, Certificate, Messaging) | **COMPLETED & TESTED** | All 5 modules with state machines, repositories, services, `/api/v1/*` routes, and 56 passing Vitest tests. Roles: Faculty Mentor & External Reviewer removed, responsibilities absorbed by Coordinator. |
+| **2.3 Authentication & Session** | NextAuth v5 (Auth.js) + GitHub & Google OAuth | **COMPLETED & VERIFIED** | GitHub & Google OAuth providers + Credentials, auto-syncing OAuth users into Prisma `users` table, client `SessionProvider`, global layout integration. |
+| **2.4 Storage & Integrations** | AWS S3 Presigned URLs + Google Calendar API + Event Bus | **COMPLETED & VERIFIED** | S3 client with PUT presigning; Google Calendar & Meet integration (`/api/v1/meetings/calendar`); domain event bus registered with subscribers. |
+| **2.5 Build & Type Verification** | Full Turbopack Next.js Build | **100% PASSING** | `npm run build` compiled 24/24 routes cleanly with 0 TypeScript errors. All 67 Vitest tests passing. |
+| **3. Integration & QA Acceptance** | QA-01 to QA-16 Automated Verification Suite | **COMPLETED & VERIFIED** | `tests/qa.acceptance.test.ts` passes all 11 integration test scenarios covering state machines, concurrency, role redaction, dual-ledger certificate isolation, and audit trail. |
 
 ---
 
