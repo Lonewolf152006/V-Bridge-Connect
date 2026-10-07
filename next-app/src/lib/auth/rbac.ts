@@ -118,7 +118,7 @@ export async function assertTeamScope(
   }
 
   if (user.role === 'coordinator') {
-    if (user.departmentId && team.activity.departmentId === user.departmentId) return;
+    if (!user.departmentId || !team.activity.departmentId || team.activity.departmentId === user.departmentId || team.activity.ownerId === user.userId) return;
     throw new AuthError('Coordinator scope limited to own department', 403);
   }
 

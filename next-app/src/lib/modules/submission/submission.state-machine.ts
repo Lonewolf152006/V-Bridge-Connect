@@ -32,6 +32,20 @@ export const SUBMISSION_TRANSITIONS: SubmissionTransition[] = [
     allowedRoles: ['coordinator', 'super_admin'],
   },
   {
+    from: 'submitted',
+    to: 'accepted',
+    verb: 'accept',
+    description: 'Coordinator accepts',
+    allowedRoles: ['coordinator', 'super_admin'],
+  },
+  {
+    from: 'submitted',
+    to: 'changes_requested',
+    verb: 'request-changes',
+    description: 'Coordinator requests changes',
+    allowedRoles: ['coordinator', 'super_admin'],
+  },
+  {
     from: 'under_review',
     to: 'changes_requested',
     verb: 'request-changes',
@@ -43,6 +57,13 @@ export const SUBMISSION_TRANSITIONS: SubmissionTransition[] = [
     to: 'accepted',
     verb: 'accept',
     description: 'Coordinator accepts',
+    allowedRoles: ['coordinator', 'super_admin'],
+  },
+  {
+    from: 'under_review',
+    to: 'evaluated',
+    verb: 'evaluate',
+    description: 'Rubric evaluation completes',
     allowedRoles: ['coordinator', 'super_admin'],
   },
   {

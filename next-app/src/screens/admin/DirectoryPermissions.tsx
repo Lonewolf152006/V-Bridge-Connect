@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
-import { ShieldCheck, UserPlus, Search, Edit3, Lock } from 'lucide-react';
+import { Modal } from '@components/common/Modal';
+import { ShieldCheck, UserPlus, Search, Edit3, Lock, Check } from 'lucide-react';
 import { MOCK_USERS_LIST } from '@services/mockData';
 import { roleLabel } from '@lib/utils';
 import type { UserRole } from '@/types';
@@ -13,14 +14,79 @@ export const DirectoryPermissions: React.FC = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
 
+  // Add User Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState<UserRole>('STUDENT');
+  const [newDepartment, setNewDepartment] = useState('Electronics and Computer Science');
+  const [newInstId, setNewInstId] = useState('');
+
+  // Edit User Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<(typeof MOCK_USERS_LIST)[0] | null>(null);
+  const [editRole, setEditRole] = useState<UserRole>('STUDENT');
+  const [editDepartment, setEditDepartment] = useState('');
+
   const filtered = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
       u.department.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchesRole =
+      roleFilter === 'ALL' ||
+      u.role === roleFilter ||
+      (roleFilter === 'COORDINATOR' && (u.role === 'COORDINATOR' || (u.role as string) === 'FACULTY_MENTOR')) ||
+      (roleFilter === 'FACULTY_MENTOR' && (u.role === 'COORDINATOR' || (u.role as string) === 'FACULTY_MENTOR'));
     return matchesSearch && matchesRole;
   });
+
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim() || !newEmail.trim()) return;
+
+    const newUser = {
+      id: `usr-${Date.now()}`,
+      name: newName.trim(),
+      email: newEmail.trim().toLowerCase(),
+      role: newRole,
+      department: newDepartment.trim() || 'General Engineering',
+      institutionalId: newInstId.trim() || `INST-${Date.now().toString().slice(-4)}`,
+      avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(newName.trim())}`,
+    };
+
+    setUsers((prev) => [newUser, ...prev]);
+    setIsAddModalOpen(false);
+    setNewName('');
+    setNewEmail('');
+    setNewInstId('');
+  };
+
+  const handleOpenEdit = (user: (typeof MOCK_USERS_LIST)[0]) => {
+    setEditingUser(user);
+    setEditRole(user.role as UserRole);
+    setEditDepartment(user.department);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === editingUser.id
+          ? {
+              ...u,
+              role: editRole,
+              department: editDepartment.trim() || u.department,
+            }
+          : u
+      )
+    );
+    setIsEditModalOpen(false);
+    setEditingUser(null);
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -42,7 +108,7 @@ export const DirectoryPermissions: React.FC = () => {
           variant="primary"
           size="sm"
           leftIcon={<UserPlus className="w-4 h-4" />}
-          onClick={() => alert('Add Member modal simulated.')}
+          onClick={() => setIsAddModalOpen(true)}
         >
           Add Institutional User
         </Button>
@@ -64,14 +130,13 @@ export const DirectoryPermissions: React.FC = () => {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50"
+          className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-700"
         >
-          <option value="ALL">All Roles</option>
+          <option value="ALL">All Institutional Roles</option>
           <option value="STUDENT">Student</option>
-          <option value="FACULTY_MENTOR">Faculty Mentor</option>
-          <option value="COORDINATOR">Coordinator</option>
+          <option value="COORDINATOR">Faculty Mentor / Coordinator</option>
           <option value="INDUSTRY_PARTNER">Industry Partner</option>
-          <option value="EXTERNAL_REVIEWER">External Reviewer</option>
+          <option value="SUPER_ADMIN">Dean / Super Administrator</option>
         </select>
       </Card>
 
@@ -123,7 +188,12 @@ export const DirectoryPermissions: React.FC = () => {
                   </td>
 
                   <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenEdit(u)}
+                      title="Edit role and department"
+                    >
                       <Edit3 className="w-3.5 h-3.5" />
                     </Button>
                   </td>
@@ -133,6 +203,173 @@ export const DirectoryPermissions: React.FC = () => {
           </table>
         </div>
       </Card>
+
+      {/* ─── Add Member Modal ─── */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Institutional User"
+        description="Provision a new institutional identity with scoped role permissions."
+        maxWidth="md"
+      >
+        <form onSubmit={handleAddUser} className="space-y-4 text-xs sm:text-sm">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. Prof. Arvind Deshmukh"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Institutional Email
+            </label>
+            <input
+              type="email"
+              required
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="e.g. arvind.deshmukh@vit.edu.in"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Institutional Role
+              </label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as UserRole)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs"
+              >
+                <option value="STUDENT">Student</option>
+                <option value="COORDINATOR">Faculty Mentor / Coordinator</option>
+                <option value="INDUSTRY_PARTNER">Industry Partner</option>
+                <option value="SUPER_ADMIN">Dean / Super Administrator</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                PRN / Institutional ID
+              </label>
+              <input
+                type="text"
+                value={newInstId}
+                onChange={(e) => setNewInstId(e.target.value)}
+                placeholder="e.g. 2026FAC881"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Department Scope
+            </label>
+            <input
+              type="text"
+              value={newDepartment}
+              onChange={(e) => setNewDepartment(e.target.value)}
+              placeholder="e.g. Electronics and Computer Science"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Add User
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── Edit Member Modal ─── */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Scoped Permissions"
+        description={editingUser ? `Update permissions and scope for ${editingUser.name}.` : 'Update role permissions.'}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4 text-xs sm:text-sm">
+          {editingUser && (
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
+              <img
+                src={editingUser.avatarUrl}
+                alt={editingUser.name}
+                className="w-9 h-9 rounded-full bg-slate-200"
+              />
+              <div>
+                <div className="font-bold text-slate-900">{editingUser.name}</div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  {editingUser.email} • {editingUser.institutionalId}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Assigned Role
+            </label>
+            <select
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as UserRole)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-xs"
+            >
+              <option value="STUDENT">Student</option>
+              <option value="COORDINATOR">Faculty Mentor / Coordinator</option>
+              <option value="INDUSTRY_PARTNER">Industry Partner</option>
+              <option value="SUPER_ADMIN">Dean / Super Administrator</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Department Scope
+            </label>
+            <input
+              type="text"
+              value={editDepartment}
+              onChange={(e) => setEditDepartment(e.target.value)}
+              placeholder="e.g. Electronics and Computer Science"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

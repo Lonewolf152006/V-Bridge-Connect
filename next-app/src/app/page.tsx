@@ -19,7 +19,7 @@ export default function HomePage() {
     } else if (currentUser.role === 'COORDINATOR') {
       router.replace('/coordinator/activities');
     } else if (currentUser.role === 'SUPER_ADMIN') {
-      router.replace('/admin/reports');
+      router.replace('/admin/people');
     } else {
       router.replace('/dashboard');
     }

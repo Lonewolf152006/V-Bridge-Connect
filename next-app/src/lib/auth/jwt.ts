@@ -49,16 +49,32 @@ export async function verifyToken(token: string): Promise<TokenPayload> {
  */
 export async function authenticateRequest(request: Request): Promise<TokenPayload> {
   const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw new AuthError('Missing or invalid Authorization header', 401);
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      return await verifyToken(token);
+    } catch {
+      throw new AuthError('Invalid or expired token', 401);
+    }
   }
 
-  const token = authHeader.slice(7);
+  // Fallback to NextAuth session cookie for frontend browser requests
   try {
-    return await verifyToken(token);
+    const { auth } = await import('@/lib/auth/auth');
+    const session = await auth();
+    if (session?.user) {
+      return {
+        userId: session.user.id,
+        role: session.user.role,
+        departmentId: session.user.departmentId || undefined,
+        email: session.user.email,
+      };
+    }
   } catch {
-    throw new AuthError('Invalid or expired token', 401);
+    // Session fallback unavailable
   }
+
+  throw new AuthError('Missing or invalid Authorization header', 401);
 }
 
 export class AuthError extends Error {

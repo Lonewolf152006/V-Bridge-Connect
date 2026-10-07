@@ -1,9 +1,5 @@
-import { AnalyticsAuditReports } from '@/screens/admin/AnalyticsAuditReports';
-
-export const metadata = {
-  title: 'Analytics & Compliance Audit — VBridgeConnect',
-};
+import { redirect } from 'next/navigation';
 
 export default function AdminReportsPage() {
-  return <AnalyticsAuditReports />;
+  redirect('/admin/people');
 }

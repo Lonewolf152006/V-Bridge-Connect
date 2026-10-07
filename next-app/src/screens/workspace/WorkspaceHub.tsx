@@ -412,14 +412,14 @@ export const WorkspaceHub: React.FC = () => {
               </div>
             ) : (
               <Link
-                href="/admin/reports"
+                href="/admin/people"
                 className="flex-shrink-0"
               >
                 <Button
                   variant="outline"
-                  leftIcon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                  leftIcon={<CheckCircle2 className="w-4 h-4 text-indigo-600" />}
                 >
-                  Workspace Analytics
+                  Directory & Roles
                 </Button>
               </Link>
             )}

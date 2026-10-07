@@ -83,13 +83,7 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Directory & Roles',
     to: '/admin/people',
     icon: ShieldCheck,
-    roles: ['SUPER_ADMIN'],
-  },
-  {
-    label: 'Institutional Reports',
-    to: '/admin/reports',
-    icon: BarChart3,
-    roles: ['SUPER_ADMIN'],
+    roles: ['SUPER_ADMIN', 'COORDINATOR'],
   },
 ];
 

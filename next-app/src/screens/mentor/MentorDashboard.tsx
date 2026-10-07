@@ -74,7 +74,6 @@ export const MentorDashboard: React.FC = () => {
   const isIndustryExpert = currentUser.role === 'INDUSTRY_PARTNER';
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [copied, setCopied] = useState(false);
 
   // Teams state initialized with MOCK_TEAMS so assignments persist in UI
   const [teamsState, setTeamsState] = useState<Team[]>(MOCK_TEAMS);
@@ -126,6 +125,55 @@ export const MentorDashboard: React.FC = () => {
   const [oppMaxTeam, setOppMaxTeam] = useState(5);
   const [oppDeadline, setOppDeadline] = useState('2026-11-15');
   const [isCreatingOpp, setIsCreatingOpp] = useState(false);
+
+  // ─── Modal 4: Manage Activity Roles ───
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [roleModalTeam, setRoleModalTeam] = useState<Team | null>(null);
+  const [memberRoleMap, setMemberRoleMap] = useState<Record<string, 'LEAD' | 'CONTRIBUTOR'>>({});
+
+  const handleOpenRoleModal = (team: Team) => {
+    setRoleModalTeam(team);
+    const initialMap: Record<string, 'LEAD' | 'CONTRIBUTOR'> = {};
+    team.members.forEach((m) => {
+      initialMap[m.userId] = m.role || 'CONTRIBUTOR';
+    });
+    setMemberRoleMap(initialMap);
+    setIsRoleModalOpen(true);
+  };
+
+  const handleSaveRoles = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleModalTeam) return;
+
+    setTeamsState((prev) =>
+      prev.map((t) => {
+        if (t.id === roleModalTeam.id) {
+          const updatedMembers = t.members.map((m) => ({
+            ...m,
+            role: memberRoleMap[m.userId] || m.role,
+          }));
+          return { ...t, members: updatedMembers };
+        }
+        return t;
+      })
+    );
+
+    // Sync with MOCK_TEAMS
+    const targetMock = MOCK_TEAMS.find((t) => t.id === roleModalTeam.id);
+    if (targetMock) {
+      targetMock.members = targetMock.members.map((m) => ({
+        ...m,
+        role: memberRoleMap[m.userId] || m.role,
+      }));
+    }
+
+    setNotificationBanner({
+      type: 'success',
+      message: `Activity roles updated for ${roleModalTeam.name}.`,
+    });
+    setIsRoleModalOpen(false);
+    setRoleModalTeam(null);
+  };
 
   const teams = teamsState.filter((team) => {
     const q = searchQuery.toLowerCase();
@@ -510,65 +558,6 @@ export const MentorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Faculty Mentor Code Banner (For Industry Co-Mentors) ─── */}
-      <div
-        className={`rounded-2xl p-5 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border ${
-          isIndustryExpert
-            ? 'bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 border-amber-500/40'
-            : 'bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 border-indigo-700/50'
-        }`}
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-xs uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full border ${
-                isIndustryExpert
-                  ? 'bg-amber-500/30 text-amber-200 border-amber-400/30'
-                  : 'bg-indigo-500/30 text-indigo-200 border-indigo-400/30'
-              }`}
-            >
-              {isIndustryExpert
-                ? 'Rahul Kapoor · Enterprise Industry Co-Mentor'
-                : 'Dr. Sheetal Patil · Lead Faculty Coordinator'}
-            </span>
-            <span className="text-xs bg-emerald-500/20 text-emerald-300 font-medium px-2 py-0.5 rounded-full border border-emerald-500/30">
-              3 Active Cohort Groups (12 Students)
-            </span>
-          </div>
-          <h2 className="text-lg font-bold text-white font-display">
-            {isIndustryExpert
-              ? 'Co-Mentorship Active on Student Groups (Mini 1, Mini 6, Mini 8)'
-              : 'Industry Co-Mentorship Invitation Code'}
-          </h2>
-          <p className="text-xs text-indigo-200/90 max-w-2xl">
-            {isIndustryExpert
-              ? 'As an Industry Expert, you can assign real-world project topics, schedule delivery milestones, review code commits, and co-evaluate student capstone submissions.'
-              : 'Share this verification code with external industry supervisors so they can co-mentor your assigned student groups (Mini 1, Mini 6, Mini 8).'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 self-start md:self-auto">
-          <div>
-            <div className="text-[10px] text-indigo-200 uppercase font-semibold">Faculty Mentor Code</div>
-            <div className="font-mono text-base font-extrabold tracking-widest text-white">
-              FAC-SPATIL-2026
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                navigator.clipboard.writeText('FAC-SPATIL-2026');
-              }
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className="px-3 py-1.5 text-xs font-semibold bg-white text-indigo-900 rounded-lg hover:bg-indigo-50 active:scale-95 transition shadow-sm"
-          >
-            {copied ? '✓ Copied!' : 'Copy Code'}
-          </button>
-        </div>
-      </div>
-
       {/* ─── Assigned Student Groups Table ─── */}
       <Card padding="none" className="overflow-hidden border-slate-200/90 shadow-sm">
         {/* Table Toolbar */}
@@ -687,6 +676,13 @@ export const MentorDashboard: React.FC = () => {
                           <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.2 rounded">
                             LEAD
                           </span>
+                          <button
+                            onClick={() => handleOpenRoleModal(team)}
+                            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 cursor-pointer"
+                            title="Assign & manage activity roles"
+                          >
+                            Roles
+                          </button>
                         </div>
                         <div className="flex items-center gap-1 pl-6 text-[11px] text-slate-500">
                           <span>+ {otherMembers.length} students:</span>
@@ -1344,6 +1340,91 @@ export const MentorDashboard: React.FC = () => {
               {isIndustryExpert
                 ? 'Publish Industry Opportunity'
                 : 'Publish Opportunity to Catalogue'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── Modal 4: Manage Activity Roles ─── */}
+      <Modal
+        isOpen={isRoleModalOpen}
+        onClose={() => setIsRoleModalOpen(false)}
+        title={roleModalTeam ? `Activity Roles — ${roleModalTeam.name}` : 'Manage Activity Roles'}
+        description="Designate project leadership and contributor roles for student team members."
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveRoles} className="space-y-4 text-xs sm:text-sm">
+          {roleModalTeam && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">
+                Select the activity role for each student in <strong>{roleModalTeam.name}</strong>. The designated student lead coordinates milestones and pull requests.
+              </p>
+
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-slate-50/50">
+                {roleModalTeam.members.map((m) => {
+                  const currentAssigned = memberRoleMap[m.userId] || 'CONTRIBUTOR';
+                  return (
+                    <div
+                      key={m.userId}
+                      className="p-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar name={m.user.name} size="sm" />
+                        <div>
+                          <div className="font-bold text-slate-900 text-xs">
+                            {m.user.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {m.user.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={currentAssigned}
+                          onChange={(e) => {
+                            const newRole = e.target.value as 'LEAD' | 'CONTRIBUTOR';
+                            setMemberRoleMap((prev) => {
+                              const updated = { ...prev };
+                              // If promoting to LEAD, demote other members to CONTRIBUTOR
+                              if (newRole === 'LEAD') {
+                                Object.keys(updated).forEach((k) => {
+                                  updated[k] = 'CONTRIBUTOR';
+                                });
+                              }
+                              updated[m.userId] = newRole;
+                              return updated;
+                            });
+                          }}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                            currentAssigned === 'LEAD'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <option value="LEAD">Team Lead</option>
+                          <option value="CONTRIBUTOR">Contributor</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRoleModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Save Roles
             </Button>
           </div>
         </form>
