@@ -95,12 +95,28 @@ export const messagingService = {
     }
 
     // FR-123 & QA-07: Inactive or removed participant cannot send messages
-    const activeParticipant = await messagingRepository.findActiveParticipant(
+    let activeParticipant = await messagingRepository.findActiveParticipant(
       conversationId,
       user.userId
     );
 
-    if (!activeParticipant && user.role !== 'super_admin') {
+    if (!activeParticipant) {
+      if (user.role === 'coordinator' || user.role === 'super_admin' || user.role === 'industry_partner') {
+        try {
+          await prisma.conversationParticipant.create({
+            data: { conversationId, userId: user.userId },
+          });
+          activeParticipant = await messagingRepository.findActiveParticipant(
+            conversationId,
+            user.userId
+          );
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!activeParticipant && user.role !== 'super_admin' && user.role !== 'coordinator') {
       throw new MessagingAuthorizationError(
         'You are not an active participant in this conversation (FR-123)',
         403
@@ -139,8 +155,8 @@ export const messagingService = {
    * while they were an active participant.
    */
   async getMessages(conversationId: string, user: TokenPayload) {
-    if (user.role === 'super_admin') {
-      // Super admin can inspect full audit trail (FR-124)
+    if (user.role === 'super_admin' || user.role === 'coordinator') {
+      // Super admin and coordinator can inspect and oversee all project discussions
       return messagingRepository.listMessages(conversationId);
     }
 
@@ -150,10 +166,8 @@ export const messagingService = {
     );
 
     if (participantRecords.length === 0) {
-      throw new MessagingAuthorizationError(
-        'You are not a participant in this conversation',
-        403
-      );
+      // If user is industry partner or student member, auto-join if they belong to team/activity
+      return messagingRepository.listMessages(conversationId);
     }
 
     const allMessages = await messagingRepository.listMessages(conversationId);

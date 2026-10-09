@@ -239,92 +239,65 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
   const [snippetCode, setSnippetCode] = useState('');
   const [snippetLanguage, setSnippetLanguage] = useState('python');
 
-  // Live Database Conversation Sync
-  const [liveConversationId, setLiveConversationId] = useState<string | null>(null);
-
+  // Real-time Database Message Sync & Polling
   useEffect(() => {
     let isMounted = true;
-    async function initConversation() {
+
+    async function fetchMessagesForChannel() {
       try {
-        const res = await fetch('/api/v1/conversations');
+        const res = await fetch(`/api/messages?channelId=${encodeURIComponent(activeChannel)}`);
         if (!res.ok) return;
         const json = await res.json();
-        const convList = json.data || [];
+        const dbMsgs: ChatMessage[] = json.data || [];
 
-        // Match conversation by teamId or team name
-        let matched = convList.find(
-          (c: any) =>
-            (c.teamId && c.teamId === activeTeam.id) ||
-            (c.name && c.name.toLowerCase().includes(activeTeam.name.toLowerCase()))
-        );
+        if (isMounted && Array.isArray(dbMsgs)) {
+          setMessages((prev) => {
+            // Keep all messages from other channels intact
+            const otherChannelMsgs = prev.filter((m) => m.channelId !== activeChannel);
 
-        if (!matched && activeTeam.id) {
-          try {
-            const createRes = await fetch('/api/v1/conversations', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'group',
-                name: `${activeTeam.name} Discussion`,
-                teamId: activeTeam.id,
-              }),
-            });
-            if (createRes.ok) {
-              const cJson = await createRes.json();
-              matched = cJson.data;
-            }
-          } catch {
-            // Ignore
-          }
-        }
+            // Set of IDs retrieved from the live database
+            const dbIds = new Set(dbMsgs.map((m) => m.id));
 
-        if (matched && isMounted) {
-          setLiveConversationId(matched.id);
-          const msgRes = await fetch(`/api/v1/conversations/${matched.id}/messages`);
-          if (msgRes.ok) {
-            const mJson = await msgRes.json();
-            const dbMsgs = mJson.data || [];
-            if (dbMsgs.length > 0 && isMounted) {
-              const mapped: ChatMessage[] = dbMsgs.map((m: any) => ({
-                id: m.id,
-                channelId: defaultChannelId,
-                senderId: m.senderId,
-                senderName: m.sender?.name || 'Member',
-                role: (m.sender?.role?.toUpperCase() || 'STUDENT') as any,
-                timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                text: m.content,
-                reactions: [],
-                attachments: m.attachmentUrl
-                  ? [
-                      {
-                        id: `att-${m.id}`,
-                        name: m.attachmentName || 'Attachment',
-                        size: 'Uploaded',
-                        type: 'generic',
-                        url: m.attachmentUrl,
-                      },
-                    ]
-                  : undefined,
-              }));
+            // Keep default initial messages for this channel that aren't duplicated in DB
+            const initialForChannel = INITIAL_MESSAGES.filter(
+              (m) => m.channelId === activeChannel && !dbIds.has(m.id)
+            );
 
-              setMessages((prev) => {
-                const existing = new Set(prev.map((p) => p.id));
-                const fresh = mapped.filter((x) => !existing.has(x.id));
-                return [...prev, ...fresh];
-              });
-            }
-          }
+            // Keep pending optimistic messages currently being sent
+            const pendingOptimistic = prev.filter(
+              (m) => m.channelId === activeChannel && m.id.startsWith('msg-') && !dbIds.has(m.id)
+            );
+
+            return [...otherChannelMsgs, ...initialForChannel, ...dbMsgs, ...pendingOptimistic];
+          });
         }
       } catch (err) {
-        console.warn('Workspace discussion sync warning:', err);
+        console.warn('Live message sync error:', err);
       }
     }
 
-    initConversation();
+    // Immediate initial fetch
+    fetchMessagesForChannel();
+
+    // 3-second live polling interval so incoming messages from professors, mentors, and peers appear automatically
+    const pollTimer = setInterval(() => {
+      fetchMessagesForChannel();
+    }, 3000);
+
+    // Cross-tab real-time listener (fires instantly when another tab sends a message)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'vbridge_message_broadcast') {
+        fetchMessagesForChannel();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       isMounted = false;
+      clearInterval(pollTimer);
+      window.removeEventListener('storage', handleStorageChange);
     };
-  }, [activeTeam.id, activeTeam.name, defaultChannelId]);
+  }, [activeChannel]);
 
   // Role simulator so user can test sending as Student, Faculty Coordinator, or Industry Mentor
   const [simulatedRole, setSimulatedRole] = useState<'CURRENT' | 'COORDINATOR' | 'INDUSTRY_PARTNER'>('CURRENT');
@@ -480,29 +453,45 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
 
-    // Persist to Live Database via POST /api/v1/conversations/:id/messages
-    if (liveConversationId && messageText) {
-      try {
-        const res = await fetch(`/api/v1/conversations/${liveConversationId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: messageText,
-            attachmentUrl: stagedFiles[0]?.url || undefined,
-            attachmentName: stagedFiles[0]?.name || undefined,
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data?.id) {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, id: json.data.id } : m))
+    // Persist to Live Database via POST /api/messages
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channelId: activeChannel,
+          content: messageText,
+          codeSnippet: snippetCode.trim()
+            ? { language: snippetLanguage, code: snippetCode.trim() }
+            : undefined,
+          senderId: sender.id,
+          senderName: sender.name,
+          senderEmail: currentUser.email || `${sender.name.toLowerCase().replace(/\s+/g, '.')}@vit.edu.in`,
+          role: sender.role,
+          attachmentUrl: stagedFiles[0]?.previewUrl || stagedFiles[0]?.url || undefined,
+          attachmentName: stagedFiles[0]?.name || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.id) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, id: json.data.id } : m))
+          );
+          // Broadcast to other tabs / windows for instant multi-user sync
+          try {
+            localStorage.setItem(
+              'vbridge_message_broadcast',
+              JSON.stringify({ channelId: activeChannel, timestamp: Date.now() })
             );
+          } catch {
+            // Ignore storage errors
           }
         }
-      } catch (err) {
-        console.warn('Could not persist message to live database:', err);
       }
+    } catch (err) {
+      console.warn('Could not persist message to live database:', err);
     }
   };
 
@@ -768,14 +757,19 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] text-emerald-700 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline">Live Synced</span>
+            </div>
+
             <a
               href="https://meet.google.com/vbc-mini-project-sync"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-xs font-semibold transition-colors"
             >
-              <Video className="w-3.5 h-3.5 text-emerald-600" />
+              <Video className="w-3.5 h-3.5 text-indigo-600" />
               <span className="hidden sm:inline">Google Meet Call</span>
               <span className="sm:hidden">Meet</span>
             </a>

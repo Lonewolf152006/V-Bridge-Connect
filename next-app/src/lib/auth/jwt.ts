@@ -58,16 +58,16 @@ export async function authenticateRequest(request: Request): Promise<TokenPayloa
     }
   }
 
-  // NextAuth v5 session fallback for browser requests
+  // NextAuth v5 & cookie session fallback for browser requests
   try {
-    const { auth } = await import('./auth');
-    const session = await auth();
-    if (session?.user?.id) {
+    const { getOptionalSession } = await import('./get-session');
+    const session = await getOptionalSession();
+    if (session?.id) {
       return {
-        userId: session.user.id,
-        role: session.user.role,
-        departmentId: session.user.departmentId || undefined,
-        email: session.user.email,
+        userId: session.id,
+        role: session.role,
+        departmentId: session.departmentId || undefined,
+        email: session.email,
       };
     }
   } catch {
