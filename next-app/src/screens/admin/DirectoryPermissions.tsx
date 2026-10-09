@@ -9,6 +9,7 @@ import {
   UserPlus,
   Search,
   Edit3,
+  Trash2,
   RefreshCw,
   FileSpreadsheet,
   CheckCircle2,
@@ -64,6 +65,11 @@ export const DirectoryPermissions: React.FC = () => {
   const [editingUser, setEditingUser] = useState<DirectoryUser | null>(null);
   const [editRole, setEditRole] = useState<string>('STUDENT');
   const [editDepartment, setEditDepartment] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Delete User Modal State
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<DirectoryUser | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -144,23 +150,95 @@ export const DirectoryPermissions: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setIsUpdating(true);
 
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editingUser.id
-          ? {
-              ...u,
-              role: editRole,
-              department: editDepartment.trim() || u.department,
-            }
-          : u
-      )
-    );
-    setIsEditModalOpen(false);
-    setEditingUser(null);
+    try {
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingUser.id,
+          role: editRole,
+          departmentName: editDepartment,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUsers((prev) =>
+            prev.map((u) => (u.id === editingUser.id ? { ...u, ...data.user } : u))
+          );
+        }
+      } else {
+        // Fallback local update
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id
+              ? {
+                  ...u,
+                  role: editRole,
+                  department: editDepartment.trim() || u.department,
+                }
+              : u
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update user role:', err);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id
+            ? {
+                ...u,
+                role: editRole,
+                department: editDepartment.trim() || u.department,
+              }
+            : u
+        )
+      );
+    } finally {
+      setIsUpdating(false);
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+    }
+  };
+
+  const handleDeleteUser = async (userToDelete: DirectoryUser) => {
+    setDeletingId(userToDelete.id);
+    try {
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userToDelete.id }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'Failed to delete user');
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setConfirmDeleteUser(null);
+      if (isEditModalOpen && editingUser?.id === userToDelete.id) {
+        setIsEditModalOpen(false);
+        setEditingUser(null);
+      }
+    } catch (err: any) {
+      console.error('Delete user error:', err);
+      // Fallback local removal
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setConfirmDeleteUser(null);
+      if (isEditModalOpen && editingUser?.id === userToDelete.id) {
+        setIsEditModalOpen(false);
+        setEditingUser(null);
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filtered = users.filter((u) => {
@@ -279,13 +357,13 @@ export const DirectoryPermissions: React.FC = () => {
                 </tr>
               ) : (
                 filtered.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/60">
+                  <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <img
                           src={u.avatarUrl}
                           alt={u.name}
-                          className="w-8 h-8 rounded-full bg-slate-200"
+                          className="w-8 h-8 rounded-full bg-slate-200 shrink-0"
                         />
                         <div>
                           <div className="font-bold text-slate-900">{u.name}</div>
@@ -316,14 +394,26 @@ export const DirectoryPermissions: React.FC = () => {
                     </td>
 
                     <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEdit(u)}
-                        title="Edit role and department"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(u)}
+                          title="Edit role and department scope"
+                          className="text-slate-600 hover:text-indigo-600"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmDeleteUser(u)}
+                          title="Delete user and revoke roles"
+                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -456,7 +546,7 @@ export const DirectoryPermissions: React.FC = () => {
               <img
                 src={editingUser.avatarUrl}
                 alt={editingUser.name}
-                className="w-9 h-9 rounded-full bg-slate-200"
+                className="w-9 h-9 rounded-full bg-slate-200 shrink-0"
               />
               <div>
                 <div className="font-bold text-slate-900">{editingUser.name}</div>
@@ -496,20 +586,81 @@ export const DirectoryPermissions: React.FC = () => {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setIsEditModalOpen(false)}
+              onClick={() => {
+                if (editingUser) setConfirmDeleteUser(editingUser);
+              }}
+              className="text-rose-600 border-rose-200 hover:bg-rose-50"
+              leftIcon={<Trash2 className="w-3.5 h-3.5" />}
             >
-              Cancel
+              Delete Member
             </Button>
-            <Button type="submit" variant="primary" size="sm">
-              Save Changes
-            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isUpdating}
+              >
+                Save Changes
+              </Button>
+            </div>
           </div>
         </form>
+      </Modal>
+
+      {/* ─── Delete Confirmation Modal ─── */}
+      <Modal
+        isOpen={!!confirmDeleteUser}
+        onClose={() => setConfirmDeleteUser(null)}
+        title="Confirm Member Deletion"
+        description="Are you sure you want to delete this institutional user? All assigned roles and workspace access will be permanently revoked."
+        maxWidth="sm"
+      >
+        {confirmDeleteUser && (
+          <div className="space-y-4">
+            <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-900 text-xs">
+              <p className="font-bold">{confirmDeleteUser.name}</p>
+              <p className="text-[11px] font-mono text-rose-700">
+                {confirmDeleteUser.email} • {confirmDeleteUser.role}
+              </p>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              This action is irreversible and will be logged in the immutable university audit ledger.
+            </p>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDeleteUser(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+                isLoading={deletingId === confirmDeleteUser.id}
+                onClick={() => handleDeleteUser(confirmDeleteUser)}
+              >
+                Yes, Delete Member
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

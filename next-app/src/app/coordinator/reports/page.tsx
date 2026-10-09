@@ -4,6 +4,6 @@ export const metadata = {
   title: 'Institutional Analytics & Audit Reports — VBridgeConnect',
 };
 
-export default function AdminReportsPage() {
+export default function CoordinatorReportsPage() {
   return <AnalyticsAuditReports />;
 }
