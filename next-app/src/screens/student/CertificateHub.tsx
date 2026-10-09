@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
+import { useAppStore } from '@store/appStore';
 import {
   Award,
   ShieldCheck,
@@ -28,11 +29,15 @@ import {
   GraduationCap,
   Calendar,
   Building,
+  UserCheck,
 } from 'lucide-react';
 import type { Certificate } from '@/types';
 import { formatDate } from '@lib/utils';
 
 export const CertificateHub: React.FC = () => {
+  const { currentUser } = useAppStore();
+  const isFaculty = currentUser.role === 'COORDINATOR' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'INDUSTRY_PARTNER';
+
   // Live certificates from database
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +110,12 @@ export const CertificateHub: React.FC = () => {
         const matchesTitle = c.activityTitle.toLowerCase().includes(q);
         const matchesProvider = c.externalProvider?.toLowerCase().includes(q);
         const matchesHash = c.verificationHash?.toLowerCase().includes(q);
-        return matchesTitle || matchesProvider || matchesHash;
+        const matchesStudent =
+          Boolean(c.studentName?.toLowerCase().includes(q)) ||
+          Boolean(c.studentEmail?.toLowerCase().includes(q)) ||
+          Boolean(c.studentInstitutionalId?.toLowerCase().includes(q)) ||
+          Boolean(c.student?.name?.toLowerCase().includes(q));
+        return matchesTitle || matchesProvider || matchesHash || matchesStudent;
       }
       return true;
     });
@@ -226,11 +236,13 @@ export const CertificateHub: React.FC = () => {
             </div>
             
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight font-display text-white">
-              My Certificates & Accreditations
+              {isFaculty ? 'Student Certificates & Verified Portfolios' : 'My Certificates & Accreditations'}
             </h1>
             
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              All your credentials in one place. Access cryptographically secured university project certificates and directly upload external certifications (AWS, Coursera, Hackathons).
+              {isFaculty
+                ? 'Review, inspect proof documents, and audit external certificates (AWS, Coursera, Hackathons) and platform credentials submitted by students across your cohorts.'
+                : 'All your credentials in one place. Access cryptographically secured university project certificates and directly upload external certifications (AWS, Coursera, Hackathons).'}
             </p>
           </div>
 
@@ -544,11 +556,11 @@ export const CertificateHub: React.FC = () => {
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by title, provider, hash..."
+              placeholder={isFaculty ? "Search student name, roll no, title, provider..." : "Search by title, provider, hash..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 placeholder:text-slate-400"
@@ -593,6 +605,28 @@ export const CertificateHub: React.FC = () => {
                         <span>{formatDate(cert.issueDate)}</span>
                       </div>
                     </div>
+
+                    {/* Student Attribution (When viewed by faculty or present on credential) */}
+                    {(cert.studentName || cert.student) && (
+                      <div className="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200/80 rounded-xl">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-2xs">
+                          {(cert.studentName || cert.student?.name || 'S').slice(0, 1).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-slate-900 truncate">
+                            {cert.studentName || cert.student?.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate">
+                            {cert.studentInstitutionalId || cert.student?.institutionalId
+                              ? `ID: ${cert.studentInstitutionalId || cert.student?.institutionalId}`
+                              : cert.studentEmail || cert.student?.email || 'Student'}
+                          </div>
+                        </div>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded">
+                          Student
+                        </span>
+                      </div>
+                    )}
 
                     {/* Certificate Title & Organization */}
                     <div>
@@ -800,6 +834,24 @@ export const CertificateHub: React.FC = () => {
       >
         {previewDocCert && (
           <div className="space-y-4 py-2">
+            {(previewDocCert.studentName || previewDocCert.student) && (
+              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">
+                  {(previewDocCert.studentName || previewDocCert.student?.name || 'S').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-indigo-950">
+                    Uploaded by {previewDocCert.studentName || previewDocCert.student?.name}
+                  </div>
+                  <div className="text-[11px] text-indigo-700 font-mono">
+                    {previewDocCert.studentInstitutionalId || previewDocCert.student?.institutionalId
+                      ? `Roll No: ${previewDocCert.studentInstitutionalId || previewDocCert.student?.institutionalId}`
+                      : previewDocCert.studentEmail || previewDocCert.student?.email}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto">
                 <FileCheck className="w-7 h-7" />
@@ -813,15 +865,28 @@ export const CertificateHub: React.FC = () => {
                 </p>
               </div>
 
+              {/* Direct Image Preview if available */}
               {(previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl) && (
-                <div className="pt-2">
+                <div>
+                  {(previewDocCert.externalFileUrl?.startsWith('data:image') ||
+                    previewDocCert.externalFileUrl?.includes('unsplash') ||
+                    previewDocCert.externalFileUrl?.match(/\.(jpeg|jpg|png|webp)($|\?)/i)) && (
+                    <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 max-h-72 flex items-center justify-center bg-white p-1">
+                      <img
+                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
+                        alt={previewDocCert.activityTitle}
+                        className="max-h-64 object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+
                   <a
                     href={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
                   >
-                    <span>Open Uploaded Document</span>
+                    <span>Open Uploaded Document / Full Proof</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>

@@ -33,10 +33,16 @@ import {
   KeyRound,
   Copy,
   RefreshCw,
+  Award,
+  FileCheck,
+  ExternalLink,
+  ShieldCheck,
+  Eye,
 } from 'lucide-react';
 import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
 import { MOCK_TEAMS } from '@services/mockData';
-import type { Team, Milestone, DeliverableType, TeamMemberRole } from '@/types';
+import type { Team, Milestone, DeliverableType, TeamMemberRole, Certificate } from '@/types';
+import { formatDate } from '@lib/utils';
 
 // Pre-defined project templates for quick one-click assignment
 const PROJECT_TOPIC_PRESETS = [
@@ -87,6 +93,13 @@ export const MentorDashboard: React.FC = () => {
 
   // Teams state initialized with MOCK_TEAMS and updated from database via /api/v1/admin/reports
   const [teamsState, setTeamsState] = useState<Team[]>(MOCK_TEAMS);
+
+  // Student certificates uploaded or self-reported by students
+  const [studentCerts, setStudentCerts] = useState<Certificate[]>([]);
+  const [certLoading, setCertLoading] = useState<boolean>(false);
+  const [certSearchQuery, setCertSearchQuery] = useState<string>('');
+  const [certFilterType, setCertFilterType] = useState<'ALL' | 'PLATFORM_ISSUED' | 'SELF_REPORTED'>('ALL');
+  const [previewDocCert, setPreviewDocCert] = useState<Certificate | null>(null);
 
   // Global notifications
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -216,6 +229,24 @@ export const MentorDashboard: React.FC = () => {
       }
     }
     loadCohortInfo();
+
+    async function loadStudentCertificates() {
+      try {
+        setCertLoading(true);
+        const res = await fetch('/api/certificates');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data)) {
+            setStudentCerts(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load student certificates in MentorDashboard:', err);
+      } finally {
+        setCertLoading(false);
+      }
+    }
+    loadStudentCertificates();
   }, []);
 
   const handleRegenerateCode = async () => {
@@ -339,6 +370,23 @@ export const MentorDashboard: React.FC = () => {
       (team.members || []).some((m) => m?.user?.name?.toLowerCase().includes(q)) ||
       (team.projectTitle && team.projectTitle.toLowerCase().includes(q))
     );
+  });
+
+  const filteredStudentCerts = studentCerts.filter((c) => {
+    if (certFilterType !== 'ALL' && c.type !== certFilterType) return false;
+    if (certSearchQuery.trim()) {
+      const q = certSearchQuery.toLowerCase();
+      const matchesTitle = c.activityTitle?.toLowerCase().includes(q);
+      const matchesProvider = c.externalProvider?.toLowerCase().includes(q);
+      const matchesHash = c.verificationHash?.toLowerCase().includes(q);
+      const matchesStudent =
+        Boolean(c.studentName?.toLowerCase().includes(q)) ||
+        Boolean(c.studentEmail?.toLowerCase().includes(q)) ||
+        Boolean(c.studentInstitutionalId?.toLowerCase().includes(q)) ||
+        Boolean(c.student?.name?.toLowerCase().includes(q));
+      return matchesTitle || matchesProvider || matchesHash || matchesStudent;
+    }
+    return true;
   });
 
   const activeSelectedTeam = teamsState.find((t) => t.id === selectedTeamId) || teamsState[0] || MOCK_TEAMS[0];
@@ -724,6 +772,18 @@ export const MentorDashboard: React.FC = () => {
             </Button>
           </Link>
 
+          {/* Action: Student Certificates & Proofs */}
+          <a href="#student-certificates">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Award className="w-4 h-4 text-purple-600" />}
+              className="border-purple-200 hover:bg-purple-50 text-purple-900 font-semibold"
+            >
+              Student Certificates ({studentCerts.length})
+            </Button>
+          </a>
+
           {isIndustryExpert && (
             <Button
               variant="outline"
@@ -1072,6 +1132,216 @@ export const MentorDashboard: React.FC = () => {
                 Inspect Rubric & Grade
               </Button>
             </Link>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── Student Certificates & Credentials Portfolio Section ─── */}
+      <div id="student-certificates" className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                <Award className="w-5 h-5" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 font-display">
+                Student Uploaded Certificates & Credentials Portfolio
+              </h2>
+              <span className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold">
+                {studentCerts.length} Total
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Review external certifications (AWS, Coursera, Hackathons) and platform credentials submitted by students across your mentored cohorts.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/certificates">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<ExternalLink className="w-3.5 h-3.5 text-purple-600" />}
+                className="border-purple-200 hover:bg-purple-50 text-purple-900 text-xs font-semibold"
+              >
+                Open Full Certificate Hub
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        <Card padding="none" className="overflow-hidden border-slate-200/90 shadow-sm">
+          {/* Table Toolbar & Search */}
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white">
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCertFilterType('ALL')}
+                className={`px-3 py-1 text-xs font-bold rounded-xl transition-all ${
+                  certFilterType === 'ALL'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                All ({studentCerts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setCertFilterType('SELF_REPORTED')}
+                className={`px-3 py-1 text-xs font-bold rounded-xl transition-all ${
+                  certFilterType === 'SELF_REPORTED'
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200/60'
+                }`}
+              >
+                External / Self-Reported ({studentCerts.filter((c) => c.type === 'SELF_REPORTED').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setCertFilterType('PLATFORM_ISSUED')}
+                className={`px-3 py-1 text-xs font-bold rounded-xl transition-all ${
+                  certFilterType === 'PLATFORM_ISSUED'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
+                }`}
+              >
+                University Issued ({studentCerts.filter((c) => c.type === 'PLATFORM_ISSUED').length})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full md:w-80">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search student, roll no, cert title, provider..."
+                value={certSearchQuery}
+                onChange={(e) => setCertSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50/80 border-b border-slate-200/60 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
+                <tr>
+                  <th className="px-5 py-3">Student Details</th>
+                  <th className="px-5 py-3">Certificate Title & Authority</th>
+                  <th className="px-5 py-3">Credential Category</th>
+                  <th className="px-5 py-3">Date Issued</th>
+                  <th className="px-5 py-3 text-right">Verification & Proof</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStudentCerts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
+                      <Award className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <div className="text-sm font-semibold text-slate-700">No student certificates found</div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {certSearchQuery ? 'Try clearing your search query.' : 'Students have not uploaded external certificates yet.'}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudentCerts.map((cert) => {
+                    const isOfficial = cert.type === 'PLATFORM_ISSUED';
+                    const studentDisplayName = cert.studentName || cert.student?.name || 'Student';
+                    const studentIdOrEmail =
+                      cert.studentInstitutionalId ||
+                      cert.student?.institutionalId ||
+                      cert.studentEmail ||
+                      cert.student?.email ||
+                      'N/A';
+
+                    return (
+                      <tr key={cert.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Student Details */}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold flex items-center justify-center font-display shadow-2xs text-xs flex-shrink-0">
+                              {studentDisplayName.slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 text-sm truncate">
+                                {studentDisplayName}
+                              </div>
+                              <div className="text-[11px] text-purple-700 font-mono truncate">
+                                {studentIdOrEmail.startsWith('24') || studentIdOrEmail.startsWith('FAC')
+                                  ? `Roll No: ${studentIdOrEmail}`
+                                  : studentIdOrEmail}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Title & Authority */}
+                        <td className="px-5 py-4">
+                          <div className="space-y-0.5">
+                            <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                              {cert.activityTitle}
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{cert.externalProvider || 'University / External Authority'}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Category */}
+                        <td className="px-5 py-4">
+                          {isOfficial ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>University Ledger</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+                              <FileCheck className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Student Uploaded</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-5 py-4 text-xs text-slate-600 font-mono">
+                          {formatDate(cert.issueDate)}
+                        </td>
+
+                        {/* Actions & Proof */}
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              leftIcon={<Eye className="w-3.5 h-3.5 text-purple-600" />}
+                              onClick={() => setPreviewDocCert(cert)}
+                              className="border-purple-200 hover:bg-purple-50 text-purple-900 text-xs font-semibold"
+                            >
+                              Inspect Proof
+                            </Button>
+                            {(cert.externalFileUrl || cert.verificationUrl) && (
+                              <a
+                                href={cert.externalFileUrl || cert.verificationUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open proof in new window"
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </Card>
       </div>
@@ -1706,6 +1976,105 @@ export const MentorDashboard: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ═════════════════════════════════════════════════════════════════════
+          MODAL 5: INSPECT STUDENT CERTIFICATE PROOF
+      ═════════════════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={!!previewDocCert}
+        onClose={() => setPreviewDocCert(null)}
+        title={previewDocCert?.activityTitle || 'Student Certificate Details'}
+        description={`Issuer: ${previewDocCert?.externalProvider || 'External Authority'}`}
+        maxWidth="lg"
+      >
+        {previewDocCert && (
+          <div className="space-y-4 py-2">
+            {/* Student info box */}
+            <div className="p-3 bg-purple-50/80 border border-purple-100 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">
+                {(previewDocCert.studentName || previewDocCert.student?.name || 'S').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-purple-950">
+                  {previewDocCert.studentName || previewDocCert.student?.name || 'Student Member'}
+                </div>
+                <div className="text-[11px] text-purple-700 font-mono">
+                  {previewDocCert.studentInstitutionalId || previewDocCert.student?.institutionalId
+                    ? `Roll No: ${previewDocCert.studentInstitutionalId || previewDocCert.student?.institutionalId}`
+                    : previewDocCert.studentEmail || previewDocCert.student?.email}
+                </div>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-200/80 text-purple-900 px-2 py-0.5 rounded-md">
+                {previewDocCert.type === 'PLATFORM_ISSUED' ? 'Official' : 'Self-Reported'}
+              </span>
+            </div>
+
+            {/* Document Details Card */}
+            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
+                <Award className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 font-display">
+                  {previewDocCert.activityTitle}
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Issued by {previewDocCert.externalProvider || 'University'} on {formatDate(previewDocCert.issueDate)}
+                </p>
+              </div>
+
+              {/* Direct Image preview if image URL */}
+              {(previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl) && (
+                <div>
+                  {(previewDocCert.externalFileUrl?.startsWith('data:image') ||
+                    previewDocCert.externalFileUrl?.includes('unsplash') ||
+                    previewDocCert.externalFileUrl?.match(/\.(jpeg|jpg|png|webp)($|\?)/i)) && (
+                    <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 max-h-72 flex items-center justify-center bg-white p-1">
+                      <img
+                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
+                        alt={previewDocCert.activityTitle}
+                        className="max-h-64 object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  <a
+                    href={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-purple-700 transition shadow-xs"
+                  >
+                    <span>Open Uploaded Document / Full Proof</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+
+              {previewDocCert.verificationHash && (
+                <div className="text-[11px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200 select-all">
+                  Hash: {previewDocCert.verificationHash}
+                </div>
+              )}
+            </div>
+
+            {previewDocCert.disclaimer && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+                {previewDocCert.disclaimer}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewDocCert(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         include: {
-          student: { select: { id: true, name: true, email: true } },
+          student: { select: { id: true, name: true, email: true, institutionalId: true } },
         },
       });
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
           take: 20,
           orderBy: { createdAt: 'desc' },
           include: {
-            student: { select: { id: true, name: true, email: true } },
+            student: { select: { id: true, name: true, email: true, institutionalId: true } },
           },
         });
       }
@@ -53,6 +53,21 @@ export async function GET(request: Request) {
     let mappedCerts: Certificate[] = dbCerts.map((c: any) => ({
       id: c.id,
       studentId: c.studentId,
+      studentName: c.student?.name || 'Student',
+      studentEmail: c.student?.email || undefined,
+      studentInstitutionalId: c.student?.institutionalId || undefined,
+      student: c.student
+        ? {
+            id: c.student.id,
+            name: c.student.name,
+            email: c.student.email,
+            role: 'STUDENT',
+            department: 'Electronics and Computer Science',
+            avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.student.name)}`,
+            institutionalId: c.student.institutionalId || undefined,
+            isOnline: true,
+          }
+        : undefined,
       activityId: c.activityId || 'act-credential',
       activityTitle: c.activityTitle,
       type: c.type === 'platform_issued' ? 'PLATFORM_ISSUED' : 'SELF_REPORTED',

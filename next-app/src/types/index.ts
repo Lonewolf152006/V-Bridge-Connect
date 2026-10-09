@@ -195,6 +195,9 @@ export interface Certificate {
   type: CertificateType;
   studentId: string;
   student?: User;
+  studentName?: string;
+  studentEmail?: string;
+  studentInstitutionalId?: string;
   activityId?: string;
   activityTitle: string;
   issueDate: string;

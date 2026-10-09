@@ -98,18 +98,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
         <span>Chat</span>
       </Link>
 
-      {currentUser.role === 'STUDENT' && (
-        <Link
-          href="/certificates"
-          className={cn(
-            'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-            pathname === '/certificates' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-          )}
-        >
-          <Award className="w-5 h-5" />
-          <span>Ledger</span>
-        </Link>
-      )}
+      <Link
+        href="/certificates"
+        className={cn(
+          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
+          pathname === '/certificates' ? 'text-indigo-600 font-bold' : 'text-slate-500'
+        )}
+      >
+        <Award className="w-5 h-5" />
+        <span>Certificates</span>
+      </Link>
     </nav>
   );
 };

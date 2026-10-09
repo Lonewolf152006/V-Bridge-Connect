@@ -60,7 +60,7 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Certificates & Ledger',
     to: '/certificates',
     icon: Award,
-    roles: ['STUDENT'],
+    roles: ['STUDENT', 'COORDINATOR', 'SUPER_ADMIN', 'INDUSTRY_PARTNER'],
   },
   {
     label: 'Messages',
