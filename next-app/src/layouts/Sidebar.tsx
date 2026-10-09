@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   BarChart3,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
@@ -36,17 +37,31 @@ const NAV_ITEMS: SidebarItem[] = [
     roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
   },
   {
-    label: 'Opportunities',
-    to: '/activities',
-    icon: Compass,
-    roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
-  },
-  {
     label: 'Workspace Hub',
     to: '/projects/team-mini-6',
     icon: FolderGit2,
     roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER'],
     badge: 'Live',
+  },
+  {
+    label: 'Opportunities',
+    to: '/opportunities',
+    icon: Compass,
+    roles: ['STUDENT'],
+    badge: 'Apply',
+  },
+  {
+    label: 'Roster & Cohort Upload',
+    to: '/coordinator/roster-upload',
+    icon: FileSpreadsheet,
+    roles: ['COORDINATOR', 'SUPER_ADMIN'],
+    badge: 'Excel/PDF',
+  },
+  {
+    label: 'Mentored Groups',
+    to: '/coordinator/dashboard',
+    icon: Users2,
+    roles: ['COORDINATOR'],
   },
   {
     label: 'Certificates & Ledger',
@@ -59,12 +74,6 @@ const NAV_ITEMS: SidebarItem[] = [
     to: '/messages',
     icon: MessageSquare,
     roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER'],
-  },
-  {
-    label: 'Mentored Groups',
-    to: '/coordinator/dashboard',
-    icon: Users2,
-    roles: ['COORDINATOR', 'INDUSTRY_PARTNER'],
   },
   {
     label: 'Rubric Grading',
@@ -83,18 +92,21 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Directory & Roles',
     to: '/admin/people',
     icon: ShieldCheck,
-    roles: ['SUPER_ADMIN'],
+    roles: ['COORDINATOR', 'SUPER_ADMIN'],
   },
   {
     label: 'Institutional Reports',
     to: '/admin/reports',
     icon: BarChart3,
-    roles: ['SUPER_ADMIN'],
+    roles: ['COORDINATOR', 'SUPER_ADMIN'],
   },
 ];
 
 export const Sidebar: React.FC = () => {
-  const { currentUser, activeWorkspace, sidebarOpen, toggleSidebar } = useAppStore();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const activeWorkspace = useAppStore((state) => state.activeWorkspace);
+  const sidebarOpen = useAppStore((state) => state.sidebarOpen);
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const pathname = usePathname();
 
   const accessibleItems = NAV_ITEMS.filter((item) =>

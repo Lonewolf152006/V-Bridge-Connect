@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
@@ -29,8 +29,12 @@ import {
   Plus,
   Target,
   FileText,
+  FileSpreadsheet,
+  KeyRound,
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
-import { MOCK_TEAMS, MOCK_ACTIVITIES, MOCK_MILESTONES } from '@services/mockData';
+import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
 import type { Team, Milestone, DeliverableType } from '@/types';
 
 // Pre-defined project templates for quick one-click assignment
@@ -75,9 +79,13 @@ export const MentorDashboard: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
+  const [facultyCode, setFacultyCode] = useState<string>('FAC-SPATIL-2026');
+  const [facultyName, setFacultyName] = useState<string>('Dr. Sheetal Patil');
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState<boolean>(false);
+  const [isJoinCohortOpen, setIsJoinCohortOpen] = useState<boolean>(false);
 
-  // Teams state initialized with MOCK_TEAMS so assignments persist in UI
-  const [teamsState, setTeamsState] = useState<Team[]>(MOCK_TEAMS);
+  // Teams state populated from database via /api/v1/admin/reports
+  const [teamsState, setTeamsState] = useState<Team[]>([]);
 
   // Global notifications
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -126,6 +134,108 @@ export const MentorDashboard: React.FC = () => {
   const [oppMaxTeam, setOppMaxTeam] = useState(5);
   const [oppDeadline, setOppDeadline] = useState('2026-11-15');
   const [isCreatingOpp, setIsCreatingOpp] = useState(false);
+
+  // Load live teams from database
+  useEffect(() => {
+    async function loadLiveTeams() {
+      try {
+        const res = await fetch('/api/v1/admin/reports');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
+            const mapped: Team[] = data.teams.map((t: any) => ({
+              id: t.id,
+              name: t.name,
+              activityId: t.activity?.id || 'act-1',
+              activityTitle: t.activity?.title || 'Semester 5 Mini Project',
+              projectTitle: t.projectTitle || `${t.name} Capstone Project`,
+              description: t.description || 'Autonomous Capstone Mini-Project under Faculty Mentorship',
+              riskStatus: t.riskStatus || 'ON_TRACK',
+              mentorId: t.mentor?.id || 'user-sheetal-patil',
+              mentorName: t.mentor?.name || 'Dr. Sheetal Patil',
+              mentor: t.mentor
+                ? {
+                    id: t.mentor.id,
+                    name: t.mentor.name,
+                    email: t.mentor.email,
+                    role: 'COORDINATOR',
+                    department: 'Electronics and Computer Science',
+                    avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(t.mentor.name)}`,
+                    isOnline: true,
+                  }
+                : undefined,
+              members: (t.members || []).map((m: any) => ({
+                userId: m.user?.id || m.id,
+                role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'MEMBER',
+                joinedAt: new Date().toISOString(),
+                user: {
+                  id: m.user?.id || m.id,
+                  name: m.user?.name || 'Student Member',
+                  email: m.user?.email || 'student@vit.edu.in',
+                  role: 'STUDENT',
+                  department: 'Electronics and Computer Science',
+                  avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                  institutionalId: m.user?.institutionalId || '24108B',
+                  isOnline: true,
+                },
+              })),
+              milestones: [],
+            }));
+            setTeamsState(mapped);
+            if (mapped.length > 0) {
+              setSelectedTeamId(mapped[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load live teams in MentorDashboard:', err);
+      }
+    }
+    loadLiveTeams();
+
+    async function loadCohortInfo() {
+      try {
+        const res = await fetch('/api/v1/mentor/cohort');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.faculty?.facultyCode) {
+            setFacultyCode(json.data.faculty.facultyCode);
+          }
+          if (json.data?.faculty?.name) {
+            setFacultyName(json.data.faculty.name);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load faculty cohort info:', err);
+      }
+    }
+    loadCohortInfo();
+  }, []);
+
+  const handleRegenerateCode = async () => {
+    setIsRegeneratingCode(true);
+    try {
+      const res = await fetch('/api/v1/mentor/cohort', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regenerate: true }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.facultyCode) {
+          setFacultyCode(json.data.facultyCode);
+          setNotificationBanner({
+            type: 'success',
+            message: `New Faculty Invite Code generated: ${json.data.facultyCode}. Share this with industry mentors.`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to regenerate faculty code:', err);
+    } finally {
+      setIsRegeneratingCode(false);
+    }
+  };
 
   const teams = teamsState.filter((team) => {
     const q = searchQuery.toLowerCase();
@@ -306,8 +416,6 @@ export const MentorDashboard: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      MOCK_MILESTONES.push(newMs);
-
       setNotificationBanner({
         type: 'success',
         message: `Milestone Stage ${milestoneStage} ("${milestoneTitle.trim()}") scheduled successfully by ${
@@ -475,6 +583,18 @@ export const MentorDashboard: React.FC = () => {
             + Add Milestone
           </Button>
 
+          {/* Action 2.5: Upload Cohort Roster (Excel / PDF) */}
+          <Link href="/coordinator/roster-upload">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<FileSpreadsheet className="w-4 h-4 text-indigo-600" />}
+              className="border-indigo-200 hover:bg-indigo-50 text-indigo-900 font-semibold"
+            >
+              Upload Roster (Excel/PDF)
+            </Button>
+          </Link>
+
           {/* Action 3: Add Opportunity (Both Mentor & Industry Expert) */}
           <Button
             variant="outline"
@@ -507,6 +627,18 @@ export const MentorDashboard: React.FC = () => {
               Grade (1 pending)
             </Button>
           </Link>
+
+          {isIndustryExpert && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsJoinCohortOpen(true)}
+              leftIcon={<KeyRound className="w-4 h-4 text-amber-500" />}
+              className="border-amber-300 bg-amber-50/90 hover:bg-amber-100 text-amber-900 font-bold shadow-xs"
+            >
+              Enter Faculty Invite Code
+            </Button>
+          )}
         </div>
       </div>
 
@@ -529,43 +661,64 @@ export const MentorDashboard: React.FC = () => {
             >
               {isIndustryExpert
                 ? 'Rahul Kapoor · Enterprise Industry Co-Mentor'
-                : 'Dr. Sheetal Patil · Lead Faculty Coordinator'}
+                : `${facultyName} · Lead Faculty Guide`}
             </span>
             <span className="text-xs bg-emerald-500/20 text-emerald-300 font-medium px-2 py-0.5 rounded-full border border-emerald-500/30">
-              3 Active Cohort Groups (12 Students)
+              {teamsState.length} Active Cohort Groups
             </span>
           </div>
           <h2 className="text-lg font-bold text-white font-display">
             {isIndustryExpert
-              ? 'Co-Mentorship Active on Student Groups (Mini 1, Mini 6, Mini 8)'
+              ? `Co-Mentorship Active on ${facultyName}'s Groups (${teamsState.map(t => t.name).join(', ') || 'Mini 1, Mini 6, Mini 8'})`
               : 'Industry Co-Mentorship Invitation Code'}
           </h2>
           <p className="text-xs text-indigo-200/90 max-w-2xl">
             {isIndustryExpert
               ? 'As an Industry Expert, you can assign real-world project topics, schedule delivery milestones, review code commits, and co-evaluate student capstone submissions.'
-              : 'Share this verification code with external industry supervisors so they can co-mentor your assigned student groups (Mini 1, Mini 6, Mini 8).'}
+              : 'Share this unique code with external industry supervisors (e.g., TechCorp Solutions, Infosys). When they sign in or enter this code, they will automatically join as co-mentors for your student teams.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 self-start md:self-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 self-start md:self-auto">
           <div>
             <div className="text-[10px] text-indigo-200 uppercase font-semibold">Faculty Mentor Code</div>
-            <div className="font-mono text-base font-extrabold tracking-widest text-white">
-              FAC-SPATIL-2026
+            <div className="font-mono text-base font-extrabold tracking-widest text-amber-300 select-all">
+              {facultyCode}
             </div>
           </div>
-          <button
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                navigator.clipboard.writeText('FAC-SPATIL-2026');
-              }
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className="px-3 py-1.5 text-xs font-semibold bg-white text-indigo-900 rounded-lg hover:bg-indigo-50 active:scale-95 transition shadow-sm"
-          >
-            {copied ? '✓ Copied!' : 'Copy Code'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  navigator.clipboard.writeText(facultyCode);
+                }
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="px-3 py-1.5 text-xs font-semibold bg-white text-indigo-900 rounded-lg hover:bg-indigo-50 active:scale-95 transition shadow-sm flex items-center gap-1.5"
+            >
+              {copied ? '✓ Copied!' : <><Copy className="w-3.5 h-3.5" /> Copy Code</>}
+            </button>
+            {!isIndustryExpert ? (
+              <button
+                onClick={handleRegenerateCode}
+                disabled={isRegeneratingCode}
+                title="Generate a new faculty code"
+                className="px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition flex items-center gap-1 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRegeneratingCode ? 'animate-spin' : ''}`} />
+                <span>Regenerate</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsJoinCohortOpen(true)}
+                className="px-2.5 py-1.5 text-xs font-medium text-amber-200 hover:text-amber-100 bg-amber-500/20 hover:bg-amber-500/30 rounded-lg transition flex items-center gap-1"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Join Another</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1348,6 +1501,24 @@ export const MentorDashboard: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* ─── Modal 4: Join Faculty Cohort with Invite Code ─── */}
+      <JoinCohortModal
+        isOpen={isJoinCohortOpen}
+        onClose={() => setIsJoinCohortOpen(false)}
+        onSuccess={(data) => {
+          setIsJoinCohortOpen(false);
+          setNotificationBanner({
+            type: 'success',
+            message: `Connected to ${data.facultyName}'s student cohort! ${data.teamsJoined.length} project teams joined.`,
+            linkTo: '/mentor/dashboard',
+            linkText: 'View Groups',
+          });
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+      />
     </div>
   );
 };

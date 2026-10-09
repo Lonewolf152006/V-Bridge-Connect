@@ -33,9 +33,9 @@ import {
   FileSpreadsheet,
   FileArchive,
   AtSign,
-  User as UserIcon,
+  Lock,
+  Shield,
 } from 'lucide-react';
-import { MOCK_TEAMS } from '@services/mockData';
 import type { Team } from '@/types';
 
 interface FileAttachment {
@@ -217,7 +217,15 @@ interface WorkspaceDiscussionTabProps {
 
 export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ currentTeam }) => {
   const { currentUser } = useAppStore();
-  const activeTeam = currentTeam || MOCK_TEAMS[1]; // defaults to Mini 6
+  const activeTeam: Team = currentTeam || {
+    id: 'team-mini-6',
+    name: 'Mini 6',
+    activityId: 'activity-001',
+    members: [],
+    mentorId: 'mentor-001',
+    riskLevel: 'ON_TRACK',
+    createdAt: new Date().toISOString(),
+  };
 
   // Default active channel matches the current group
   const defaultChannelId = activeTeam.id === 'team-mini-1' ? 'mini-1-all' : activeTeam.id === 'team-mini-8' ? 'mini-8-all' : 'mini-6-all';
@@ -553,41 +561,15 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
             </div>
           </div>
 
-          {/* 2. Individual Members of the Group (1-on-1 Direct Chats) */}
-          <div>
-            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-              <span>{activeTeam.name} Members (1-on-1)</span>
-              <span className="text-[10px] text-indigo-400 font-mono">{groupMembers.length}</span>
+          {/* 2. Communication Policy Notice (Personal DMs Removed) */}
+          <div className="p-3 mx-1 rounded-xl bg-slate-800/80 border border-slate-700/60 text-[11px] text-slate-300 space-y-1.5">
+            <div className="text-white font-bold flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Official Channel Policy</span>
             </div>
-
-            <div className="space-y-0.5 mt-1">
-              {groupMembers.map((member) => {
-                const isActive = activeChannel === member.id;
-                return (
-                  <button
-                    key={member.id}
-                    onClick={() => setActiveChannel(member.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-colors group ${
-                      isActive
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <InitialsAvatar name={member.name} size="xs" />
-                      <div className="min-w-0 truncate">
-                        <div className="text-xs font-semibold truncate leading-tight">
-                          {member.name}
-                        </div>
-                        <div className="text-[10px] text-slate-400 truncate leading-tight">
-                          {member.role}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              Personal team member chats have been removed. Communications are maintained as official one-way directives from professors to students.
+            </p>
           </div>
 
           {/* 3. Faculty Coordinators & Mentors (1-on-1 Direct Chats) */}
@@ -929,13 +911,26 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
             </div>
           )}
 
-          {/* Input Form */}
-          <form
-            onSubmit={handleSendMessage}
-            className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
-          >
-            {/* Formatting Toolbar */}
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50/50 text-slate-500">
+          {/* Input Form or One-Way Student Read-Only Notice */}
+          {currentUser.role === 'STUDENT' && simulatedRole === 'CURRENT' ? (
+            <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200/80 flex items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2.5">
+                <Lock className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                <span>
+                  <strong>One-Way Faculty Feed:</strong> Only professors and faculty guides have posting permissions in this channel. Students have read and resource access.
+                </span>
+              </div>
+              <span className="text-[10px] bg-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider flex-shrink-0">
+                Read-Only
+              </span>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSendMessage}
+              className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all"
+            >
+              {/* Formatting Toolbar */}
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50/50 text-slate-500">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -1071,6 +1066,7 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
               </Button>
             </div>
           </form>
+          )}
         </div>
       </div>
 

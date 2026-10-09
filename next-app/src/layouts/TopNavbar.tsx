@@ -12,8 +12,11 @@ export interface TopNavbarProps {
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) => {
-  const { currentUser, notifications, unreadCount, markAllRead, toggleSidebar } =
-    useAppStore();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const notifications = useAppStore((state) => state.notifications);
+  const unreadCount = useAppStore((state) => state.unreadCount);
+  const markAllRead = useAppStore((state) => state.markAllRead);
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const [showNotifications, setShowNotifications] = useState(false);
 
   return (

@@ -281,6 +281,26 @@ export const rosterService = {
       throw new Error('Faculty member not found');
     }
 
+    // Auto-generate faculty code if not yet assigned
+    if (!faculty.facultyCode) {
+      const cleanLastName = faculty.name.replace(/^(dr\.|prof\.)\s+/i, '').split(' ').pop()?.toUpperCase() || 'GUIDE';
+      let generated = `FAC-${cleanLastName}-2026`;
+      try {
+        await prisma.user.update({
+          where: { id: faculty.id },
+          data: { facultyCode: generated },
+        });
+        faculty.facultyCode = generated;
+      } catch {
+        generated = `FAC-${cleanLastName}-${Math.floor(1000 + Math.random() * 9000)}`;
+        await prisma.user.update({
+          where: { id: faculty.id },
+          data: { facultyCode: generated },
+        });
+        faculty.facultyCode = generated;
+      }
+    }
+
     const teams = await prisma.team.findMany({
       where: { mentorId: facultyUserId },
       include: {
@@ -330,5 +350,34 @@ export const rosterService = {
         };
       }),
     };
+  },
+
+  /**
+   * Regenerate or set a custom unique invite code for a faculty member.
+   */
+  async generateOrUpdateFacultyCode(facultyUserId: string, customCode?: string) {
+    const faculty = await prisma.user.findUnique({
+      where: { id: facultyUserId },
+      select: { id: true, name: true, email: true, facultyCode: true },
+    });
+
+    if (!faculty) {
+      throw new Error('Faculty member not found');
+    }
+
+    let code = customCode?.trim().toUpperCase();
+    if (!code) {
+      const cleanLastName = faculty.name.replace(/^(dr\.|prof\.)\s+/i, '').split(' ').pop()?.toUpperCase() || 'GUIDE';
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      code = `FAC-${cleanLastName}-${randomSuffix}`;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: facultyUserId },
+      data: { facultyCode: code },
+      select: { id: true, name: true, email: true, facultyCode: true },
+    });
+
+    return updated;
   },
 };

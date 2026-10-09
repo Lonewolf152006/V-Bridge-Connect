@@ -14,6 +14,7 @@ import {
   Sparkles,
   Building2,
   GraduationCap,
+  KeyRound,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { roleLabel } from '@lib/utils';
@@ -60,17 +61,20 @@ export const LoginScreen: React.FC = () => {
   // Form states — initialized with default
   const [email, setEmail] = useState('harshad.panchal@vit.edu.in');
   const [password, setPassword] = useState('Test1234!');
+  const [facultyCode, setFacultyCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const setPreset = (
     tab: LoginTab,
     presetEmail: string,
-    presetPass: string
+    presetPass: string,
+    presetCode: string = ''
   ) => {
     setActiveTab(tab);
     setEmail(presetEmail);
     setPassword(presetPass);
+    setFacultyCode(presetCode);
     setErrorMessage(null);
   };
 
@@ -103,7 +107,19 @@ export const LoginScreen: React.FC = () => {
         router.push('/mentor/dashboard');
       } else if (cleanEmail.includes('expert') || cleanEmail.includes('techcorp') || cleanEmail.includes('corporate') || cleanEmail.includes('partner')) {
         setRole('INDUSTRY_PARTNER');
-        router.push('/dashboard');
+        // If a faculty invite code was entered, auto-link to faculty cohort
+        if (facultyCode.trim()) {
+          try {
+            await fetch('/api/v1/mentor/join-code', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: facultyCode.trim() }),
+            });
+          } catch (joinErr) {
+            console.warn('[Login] Auto-join with faculty code error:', joinErr);
+          }
+        }
+        router.push('/mentor/dashboard');
       } else {
         setRole('STUDENT');
         router.push('/dashboard');
@@ -173,7 +189,7 @@ export const LoginScreen: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setPreset('INDUSTRY_PARTNER', 'expert@industry.com', 'expert123')}
+              onClick={() => setPreset('INDUSTRY_PARTNER', 'expert@industry.com', 'expert123', 'FAC-SPATIL-2026')}
               className={`p-2 rounded-xl text-left font-medium transition-all border ${
                 activeTab === 'INDUSTRY_PARTNER'
                   ? 'bg-amber-600 text-white border-amber-400 shadow-sm'
@@ -184,7 +200,7 @@ export const LoginScreen: React.FC = () => {
                 <span>🏢</span> Industry Expert
               </div>
               <div className="text-[9px] opacity-80 font-mono truncate">expert@industry.com</div>
-              <div className="text-[9px] opacity-90 font-mono">pwd: expert123</div>
+              <div className="text-[9px] opacity-90 font-mono">code: FAC-SPATIL-2026</div>
             </button>
 
             <button
@@ -476,6 +492,31 @@ export const LoginScreen: React.FC = () => {
                       className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                     />
                   </div>
+                </div>
+
+                {/* Faculty Invite Code Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Faculty Invite Code <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <span className="text-[10px] text-amber-800 bg-amber-100/70 border border-amber-200 px-1.5 py-0.5 rounded font-mono font-bold">
+                      e.g. FAC-SPATIL-2026
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-amber-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={facultyCode}
+                      onChange={(e) => setFacultyCode(e.target.value.toUpperCase())}
+                      placeholder="FAC-SPATIL-2026"
+                      className="w-full pl-9 pr-3 py-2 text-sm font-mono uppercase tracking-wider rounded-xl border border-slate-200 bg-amber-50/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Have an invite code from Dr. Sheetal Patil or faculty? Enter it to instantly link your account to their student teams upon sign-in.
+                  </p>
                 </div>
 
                 <Button

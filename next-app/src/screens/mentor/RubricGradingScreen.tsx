@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@components/common/Card';
@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Sparkles,
 } from 'lucide-react';
-import { MOCK_SUBMISSIONS, MOCK_MILESTONES, MOCK_TEAMS } from '@services/mockData';
 import { calcRubricTotal } from '@lib/utils';
 
 export const RubricGradingScreen: React.FC = () => {
@@ -26,11 +25,48 @@ export const RubricGradingScreen: React.FC = () => {
   const submissionId = params?.submissionId as string | undefined;
   const router = useRouter();
 
-  // Find target submission or fallback to v2
-  const submission =
-    MOCK_SUBMISSIONS.find((s) => s.id === submissionId) || MOCK_SUBMISSIONS[1];
-  const milestone = MOCK_MILESTONES[0];
-  const team = MOCK_TEAMS[0];
+  const [liveSubmission, setLiveSubmission] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadSubmission() {
+      try {
+        const res = await fetch('/api/submissions');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.length > 0) {
+            setLiveSubmission(json.data[0]);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load submission:', e);
+      }
+    }
+    loadSubmission();
+  }, []);
+
+  const submission = liveSubmission || {
+    id: submissionId || 'sub-live-1',
+    milestoneId: 'ms-002',
+    teamId: 'team-mini-6',
+    stageNumber: 2,
+    status: 'SUBMITTED',
+    deliverableType: 'GITHUB_URL',
+    content: 'https://github.com/vit-capstone-mini6/autonomous-vehicle-telemetry',
+    submittedAt: new Date().toISOString(),
+    evaluation: null,
+  };
+  const milestone = {
+    id: submission.milestoneId || 'ms-002',
+    activityId: submission.activityId || 'activity-001',
+    title: submission.milestoneTitle || 'Milestone 2: Prototype & Code Demonstration',
+    stageNumber: submission.stageNumber || 2,
+    weightage: 35,
+    dueDate: '2026-11-01',
+  };
+  const team = {
+    id: submission.teamId || 'team-mini-6',
+    name: submission.teamName || 'Mini 6',
+  };
 
   // Rubric Scores State
   const [scores, setScores] = useState<Record<string, number>>({

@@ -16,7 +16,6 @@ import {
   ArrowRight,
   BookOpen,
 } from 'lucide-react';
-import { MOCK_ACTIVITIES, MOCK_USERS_LIST } from '@services/mockData';
 import type { Activity, ActivityCategory } from '@/types';
 import { capacityPercent } from '@lib/utils';
 
@@ -174,7 +173,7 @@ export const OpportunityCatalogue: React.FC = () => {
       {/* ─── Opportunity Grid ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredActivities.map((act) => {
-          const supervisor = MOCK_USERS_LIST.find((u) => u.id === act.supervisorId);
+          const leadName = (act as any).supervisorName || (act as any).owner?.name || 'Faculty Mentor';
           const percent = capacityPercent(act.filledSeats, act.capacity);
 
           return (
@@ -241,18 +240,14 @@ export const OpportunityCatalogue: React.FC = () => {
                 </div>
 
                 {/* Supervisor Snippet */}
-                {supervisor && (
-                  <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
-                    <img
-                      src={supervisor.avatarUrl}
-                      alt={supervisor.name}
-                      className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200"
-                    />
-                    <div className="text-xs text-slate-600 truncate">
-                      Lead: <span className="font-semibold text-slate-800">{supervisor.name}</span>
-                    </div>
+                <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center border border-indigo-200">
+                    {leadName.charAt(0)}
                   </div>
-                )}
+                  <div className="text-xs text-slate-600 truncate">
+                    Mentor: <span className="font-semibold text-slate-800">{leadName}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Action Button */}

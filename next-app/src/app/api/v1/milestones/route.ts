@@ -80,60 +80,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { MOCK_MILESTONES } = await import('@/services/mockData');
-
-    // Create in-memory milestone representation
-    const newMockMilestone: any = {
-      id: `ms-${Date.now()}`,
-      activityId: body.activityId || 'activity-001',
-      teamId: teamId || undefined,
-      title: title.trim(),
-      description: description?.trim() || '',
-      stageNumber: parseInt(stageNumber, 10),
-      dueDate: new Date(dueDate).toISOString(),
-      deliverableType: deliverableType || 'PDF',
-      weightage: weightage ? parseInt(weightage, 10) : 25,
-      status: 'OPEN',
-      requiresMentorReview: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    MOCK_MILESTONES.push(newMockMilestone);
-
     // Resolve activityId: either from body or find default active activity
     let activityId = body.activityId;
-    let milestone = newMockMilestone;
-
-    try {
-      if (!activityId) {
-        const activeAct = await prisma.activity.findFirst({
-          where: { title: { contains: 'Semester 5 Mini Project' } },
-          select: { id: true },
-        });
-        activityId = activeAct?.id;
-      }
-
-      if (activityId) {
-        const dbMilestone = await prisma.milestone.create({
-          data: {
-            activityId,
-            teamId: teamId || null,
-            title: title.trim(),
-            description: description?.trim() || '',
-            stageNumber: parseInt(stageNumber, 10),
-            dueDate: new Date(dueDate),
-            deliverableType: deliverableType || 'PDF',
-            weightage: weightage ? parseInt(weightage, 10) : 0,
-            status: 'not_started',
-            requiresMentorReview: true,
-          },
-        });
-        milestone = dbMilestone;
-      }
-    } catch (dbErr) {
-      console.warn('[MilestoneAPI] Database write fallback to in-memory:', dbErr);
+    if (!activityId) {
+      const activeAct = await prisma.activity.findFirst({
+        where: { title: { contains: 'Semester 5 Mini Project' } },
+        select: { id: true },
+      });
+      activityId = activeAct?.id;
     }
+
+    if (!activityId) {
+      const firstAct = await prisma.activity.findFirst({ select: { id: true } });
+      activityId = firstAct?.id;
+    }
+
+    if (!activityId) {
+      return NextResponse.json(
+        { success: false, error: 'No active academic activity found to attach milestone.' },
+        { status: 400 }
+      );
+    }
+
+    const milestone = await prisma.milestone.create({
+      data: {
+        activityId,
+        teamId: teamId || null,
+        title: title.trim(),
+        description: description?.trim() || '',
+        stageNumber: parseInt(stageNumber, 10),
+        dueDate: new Date(dueDate),
+        deliverableType: deliverableType || 'PDF',
+        weightage: weightage ? parseInt(weightage, 10) : 0,
+        status: 'not_started',
+        requiresMentorReview: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,

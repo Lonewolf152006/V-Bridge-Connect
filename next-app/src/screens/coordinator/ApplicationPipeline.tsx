@@ -13,15 +13,13 @@ import {
   Shield,
   Search,
 } from 'lucide-react';
-import { MOCK_APPLICATIONS, MOCK_ACTIVITIES } from '@services/mockData';
-import type { ApplicationStatus } from '@/types';
+import type { Application, ApplicationStatus } from '@/types';
 import { getApplicationBadge } from '@lib/utils';
 
 export const ApplicationPipeline: React.FC = () => {
-  const [applications, setApplications] = useState(MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus | 'ALL'>('ALL');
   const [loading, setLoading] = useState(false);
-  const activity = MOCK_ACTIVITIES[0];
 
   useEffect(() => {
     async function loadApplications() {
@@ -78,7 +76,7 @@ export const ApplicationPipeline: React.FC = () => {
             Application Review Pipeline
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            {activity.title} • {activity.filledSeats} / {activity.capacity} seats filled
+            Semester 5 Mini Project & Opportunities • {applications.length} applications logged
           </p>
         </div>
 

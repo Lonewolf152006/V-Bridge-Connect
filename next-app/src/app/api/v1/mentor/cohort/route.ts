@@ -28,3 +28,33 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireAuth(request, 'coordinator', 'super_admin');
+    const body = await request.json().catch(() => ({}));
+    const customCode = body.code || body.customCode;
+
+    const updated = await rosterService.generateOrUpdateFacultyCode(
+      user.userId,
+      customCode
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: `Faculty invite code generated: ${updated.facultyCode}`,
+      data: updated,
+    });
+  } catch (error: any) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: error.statusCode }
+      );
+    }
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to generate faculty code' },
+      { status: 400 }
+    );
+  }
+}

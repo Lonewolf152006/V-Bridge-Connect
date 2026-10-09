@@ -199,7 +199,9 @@ export interface Certificate {
   signatories?: string[];
   qrCodeUrl?: string;
   externalProvider?: string;
+  externalFileUrl?: string;
   uploadReceiptUrl?: string;
+  status?: string;
   isVerifiedByFaculty?: boolean;
   disclaimer?: string;
 }

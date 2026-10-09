@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { Home, Compass, FolderGit2, MessageSquare, Award } from 'lucide-react';
+import { Home, Compass, FolderGit2, MessageSquare, Award, FileSpreadsheet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface MobileBottomNavProps {
@@ -12,13 +12,14 @@ export interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation = false }) => {
-  const { currentUser, activeWorkspace } = useAppStore();
+  const currentUser = useAppStore((state) => state.currentUser);
+  const activeWorkspace = useAppStore((state) => state.activeWorkspace);
   const pathname = usePathname();
 
   const getHomePath = () => {
     switch (currentUser.role) {
       case 'COORDINATOR':
-        return '/coordinator/activities';
+        return '/coordinator/dashboard';
       case 'SUPER_ADMIN':
         return '/admin/reports';
       default:
@@ -51,16 +52,29 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
         <span>Home</span>
       </Link>
 
-      <Link
-        href="/activities"
-        className={cn(
-          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-          pathname === '/activities' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-        )}
-      >
-        <Compass className="w-5 h-5" />
-        <span>Catalog</span>
-      </Link>
+      {currentUser.role === 'COORDINATOR' || currentUser.role === 'SUPER_ADMIN' ? (
+        <Link
+          href="/coordinator/roster-upload"
+          className={cn(
+            'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
+            pathname === '/coordinator/roster-upload' ? 'text-indigo-600 font-bold' : 'text-slate-500'
+          )}
+        >
+          <FileSpreadsheet className="w-5 h-5" />
+          <span>Roster</span>
+        </Link>
+      ) : (
+        <Link
+          href="/dashboard"
+          className={cn(
+            'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
+            pathname === '/dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-500'
+          )}
+        >
+          <FolderGit2 className="w-5 h-5" />
+          <span>Projects</span>
+        </Link>
+      )}
 
       <Link
         href={workspacePath}

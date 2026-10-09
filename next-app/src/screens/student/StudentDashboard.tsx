@@ -173,13 +173,13 @@ export const StudentDashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 pt-1">
-          <Link href="/activities" className="flex-1 sm:flex-initial">
+          <Link href="/opportunities" className="flex-1 sm:flex-initial">
             <Button
               variant="outline"
               className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-none text-xs sm:text-sm px-3 sm:px-4"
               leftIcon={<Compass className="w-4 h-4" />}
             >
-              Browse Catalog
+              Explore Opportunities
             </Button>
           </Link>
           <Link href="/certificates" className="flex-1 sm:flex-initial">

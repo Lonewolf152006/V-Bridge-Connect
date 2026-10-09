@@ -52,7 +52,7 @@ export const authConfig: NextAuthConfig = {
       }
 
       if (pathname.startsWith('/admin')) {
-        if (userRole !== 'super_admin') {
+        if (userRole !== 'super_admin' && userRole !== 'coordinator') {
           return Response.redirect(new URL('/dashboard', request.nextUrl));
         }
       }

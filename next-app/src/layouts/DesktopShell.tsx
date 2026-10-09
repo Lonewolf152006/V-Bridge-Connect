@@ -13,7 +13,7 @@ export interface DesktopShellProps {
 }
 
 export const DesktopShell: React.FC<DesktopShellProps> = ({ children }) => {
-  const { viewportMode } = useAppStore();
+  const viewportMode = useAppStore((state) => state.viewportMode);
   const pathname = usePathname();
 
   if (pathname === '/login') {

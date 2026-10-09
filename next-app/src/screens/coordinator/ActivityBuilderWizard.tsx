@@ -19,7 +19,6 @@ import {
   Info,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { MOCK_ACTIVITIES } from '@services/mockData';
 import type { Activity } from '@/types';
 
 interface MilestoneInput {
@@ -226,10 +225,7 @@ export const ActivityBuilderWizard: React.FC = () => {
     };
 
     try {
-      // Add to in-memory MOCK_ACTIVITIES immediately
-      MOCK_ACTIVITIES.unshift(newActivity);
-
-      // Attempt API persistence (fails gracefully if local session only)
+      // Persist to API / Database
       try {
         await fetch('/api/activities', {
           method: 'POST',

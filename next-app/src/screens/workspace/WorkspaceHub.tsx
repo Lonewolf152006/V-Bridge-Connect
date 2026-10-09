@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@store/appStore';
@@ -36,15 +36,143 @@ import {
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
 import { WorkspaceRepositoryTab } from './WorkspaceRepositoryTab';
 import { WorkspaceDiscussionTab } from './WorkspaceDiscussionTab';
-import {
-  MOCK_TEAMS,
-  MOCK_ACTIVITIES,
-  MOCK_MILESTONES,
-  MOCK_SUBMISSIONS,
-  MOCK_CHANNELS,
-} from '@services/mockData';
 import { formatDateTime, getMilestoneBadge, timeAgo } from '@lib/utils';
-import type { Milestone, DeliverableType } from '@/types';
+import type { Team, Milestone, DeliverableType } from '@/types';
+
+const DEFAULT_TEAMS: Team[] = [
+  {
+    id: 'team-mini-6',
+    name: 'Mini 6',
+    activityId: 'act-001',
+    projectTitle: 'Autonomous Telemetry & Vision Pipeline',
+    projectDescription: 'Edge AI processing for camera telemetry and sensor fusion.',
+    projectDomain: 'IoT & Embedded Systems',
+    projectSource: 'faculty_assigned',
+    projectStatus: 'in_progress',
+    industryMentorName: 'Rahul Kapoor (TechCorp Solutions)',
+    mentorId: 'user-sheetal-patil',
+    riskLevel: 'ON_TRACK',
+    members: [
+      {
+        userId: 'stu-001',
+        role: 'LEAD',
+        joinedAt: new Date().toISOString(),
+        user: {
+          id: 'stu-001',
+          name: 'Vedant Balvant Nikumbh',
+          email: 'vedant.nikumbh@vit.edu.in',
+          role: 'STUDENT',
+          department: 'Electronics and Computer Science',
+          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Vedant',
+          isOnline: true,
+        },
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'team-mini-1',
+    name: 'Mini 1',
+    activityId: 'act-001',
+    projectTitle: 'Edge AI Vision for Industrial Safety Inspection',
+    projectDescription: 'Computer vision on Jetson for workplace compliance.',
+    projectDomain: 'AI & Computer Vision',
+    projectSource: 'industry_offered',
+    projectStatus: 'in_progress',
+    industryMentorName: 'Rahul Kapoor (TechCorp Solutions)',
+    mentorId: 'user-sheetal-patil',
+    riskLevel: 'ON_TRACK',
+    members: [
+      {
+        userId: 'stu-005',
+        role: 'LEAD',
+        joinedAt: new Date().toISOString(),
+        user: {
+          id: 'stu-005',
+          name: 'Harshavardhan Ravindra More',
+          email: 'harshavardhan.more@vit.edu.in',
+          role: 'STUDENT',
+          department: 'Electronics and Computer Science',
+          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Harshavardhan',
+          isOnline: true,
+        },
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'team-mini-8',
+    name: 'Mini 8',
+    activityId: 'act-001',
+    projectTitle: 'Microgrid Energy Optimization using IoT',
+    projectDescription: 'LoRaWAN energy monitoring and automated load shedding.',
+    projectDomain: 'IoT & Embedded Systems',
+    projectSource: 'faculty_assigned',
+    projectStatus: 'in_progress',
+    industryMentorName: 'Anita Rao (Infosys)',
+    mentorId: 'user-sheetal-patil',
+    riskLevel: 'ON_TRACK',
+    members: [
+      {
+        userId: 'stu-009',
+        role: 'LEAD',
+        joinedAt: new Date().toISOString(),
+        user: {
+          id: 'stu-009',
+          name: 'Manasi Sachin Pawar',
+          email: 'manasi.pawar@vit.edu.in',
+          role: 'STUDENT',
+          department: 'Electronics and Computer Science',
+          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Manasi',
+          isOnline: true,
+        },
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  },
+];
+
+const DEFAULT_MILESTONES: Milestone[] = [
+  {
+    id: 'ms-001',
+    activityId: 'act-001',
+    title: 'Milestone 1: Problem Definition & Architecture Specification',
+    description: 'System architectural design, component diagrams, hardware Bill-of-Materials, and risk matrix.',
+    stageNumber: 1,
+    status: 'ACCEPTED',
+    dueDate: '2026-10-15',
+    weightage: 20,
+    deliverableType: 'PDF',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'ms-002',
+    activityId: 'act-001',
+    title: 'Milestone 2: Working Prototype & Code Repository Demonstration',
+    description: 'Functional prototype implementation, GitHub repo access with CI checks, and empirical benchmark dataset.',
+    stageNumber: 2,
+    status: 'SUBMITTED',
+    dueDate: '2026-11-01',
+    weightage: 35,
+    deliverableType: 'GITHUB_URL',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'ms-003',
+    activityId: 'act-001',
+    title: 'Milestone 3: Final Defense & Verified Institutional Archive',
+    description: 'Complete project report, video demonstration, comprehensive testing suites, and poster submission.',
+    stageNumber: 3,
+    status: 'OPEN',
+    dueDate: '2026-11-20',
+    weightage: 45,
+    deliverableType: 'ZIP',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 export const WorkspaceHub: React.FC = () => {
   const params = useParams();
@@ -52,21 +180,100 @@ export const WorkspaceHub: React.FC = () => {
   const { currentUser } = useAppStore();
   const [activeTab, setActiveTab] = useState<string>('overview');
 
-  // Option to switch between groups
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(
-    teamId || 'team-mini-6'
-  );
-
-  const currentTeam =
-    MOCK_TEAMS.find((t) => t.id === selectedTeamId) ||
-    MOCK_TEAMS.find((t) => t.id === teamId) ||
-    MOCK_TEAMS[0];
-  const currentActivity =
-    MOCK_ACTIVITIES.find((a) => a.id === currentTeam?.activityId) ||
-    MOCK_ACTIVITIES[0];
+  const [teamsState, setTeamsState] = useState<Team[]>(DEFAULT_TEAMS);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'team-mini-6');
 
   // Milestones State
-  const [milestonesState, setMilestonesState] = useState<Milestone[]>(MOCK_MILESTONES);
+  const [milestonesState, setMilestonesState] = useState<Milestone[]>(DEFAULT_MILESTONES);
+
+  useEffect(() => {
+    async function fetchLiveContext() {
+      try {
+        const teamRes = await fetch('/api/v1/admin/reports');
+        if (teamRes.ok) {
+          const data = await teamRes.json();
+          if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
+            const mapped: Team[] = data.teams.map((t: any) => ({
+              id: t.id,
+              name: t.name,
+              activityId: t.activity?.id || 'act-1',
+              projectTitle: t.projectTitle || `${t.name} Capstone Project`,
+              projectDescription: t.description || 'Capstone Project',
+              riskLevel: t.riskStatus === 'at_risk' ? 'AT_RISK' : 'ON_TRACK',
+              mentorId: t.mentor?.id || 'user-sheetal-patil',
+              mentor: t.mentor
+                ? {
+                    id: t.mentor.id,
+                    name: t.mentor.name,
+                    email: t.mentor.email,
+                    role: 'COORDINATOR',
+                    department: 'Electronics and Computer Science',
+                    avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(t.mentor.name)}`,
+                    isOnline: true,
+                  }
+                : undefined,
+              members: (t.members || []).map((m: any) => ({
+                userId: m.user?.id || m.id,
+                role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR',
+                joinedAt: new Date().toISOString(),
+                user: {
+                  id: m.user?.id || m.id,
+                  name: m.user?.name || 'Student Member',
+                  email: m.user?.email || 'student@vit.edu.in',
+                  role: 'STUDENT',
+                  department: 'Electronics and Computer Science',
+                  avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                  institutionalId: m.user?.institutionalId || '24108B',
+                  isOnline: true,
+                },
+              })),
+              createdAt: new Date().toISOString(),
+            }));
+            setTeamsState(mapped);
+          }
+        }
+
+        const msRes = await fetch('/api/v1/milestones');
+        if (msRes.ok) {
+          const msData = await msRes.json();
+          if (msData.data && Array.isArray(msData.data) && msData.data.length > 0) {
+            setMilestonesState(
+              msData.data.map((m: any) => ({
+                id: m.id,
+                activityId: m.activityId,
+                title: m.title,
+                description: m.description,
+                stageNumber: m.stageNumber,
+                status: m.status?.toUpperCase() === 'COMPLETED' ? 'ACCEPTED' : 'OPEN',
+                dueDate: typeof m.dueDate === 'string' ? m.dueDate : new Date(m.dueDate).toISOString(),
+                weightage: m.weightage,
+                deliverableType: m.deliverableType || 'PDF',
+                createdAt: typeof m.createdAt === 'string' ? m.createdAt : new Date(m.createdAt).toISOString(),
+                updatedAt: typeof m.updatedAt === 'string' ? m.updatedAt : new Date().toISOString(),
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch workspace context:', err);
+      }
+    }
+    fetchLiveContext();
+  }, []);
+
+  const currentTeam =
+    teamsState.find((t) => t.id === selectedTeamId) ||
+    teamsState.find((t) => t.id === teamId) ||
+    teamsState[0] ||
+    DEFAULT_TEAMS[0];
+
+  const currentActivity = {
+    id: currentTeam.activityId || 'act-001',
+    title: (currentTeam as any).activityTitle || `${currentTeam.name} Capstone Track`,
+    department: 'Electronics and Computer Science',
+    description: currentTeam.projectDescription || 'Autonomous Capstone Mini-Project under Faculty Mentorship',
+    category: 'CAPSTONE',
+  };
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
   const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
   const [newMilestoneStage, setNewMilestoneStage] = useState<number>(3);
@@ -189,7 +396,6 @@ export const WorkspaceHub: React.FC = () => {
       };
 
       setMilestonesState((prev) => [...prev, newMs]);
-      MOCK_MILESTONES.push(newMs);
       setIsAddMilestoneModalOpen(false);
       setNewMilestoneTitle('');
       setNewMilestoneDesc('');
@@ -291,7 +497,7 @@ export const WorkspaceHub: React.FC = () => {
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   className="bg-transparent font-bold text-indigo-900 text-xs focus:outline-none cursor-pointer"
                 >
-                  {MOCK_TEAMS.map((t) => {
+                  {teamsState.map((t) => {
                     const lead = t.members.find((m) => m.role === 'LEAD')?.user.name.split(' ')[0] || 'Team';
                     return (
                       <option key={t.id} value={t.id}>

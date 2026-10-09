@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@components/common/Card';
@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Send,
 } from 'lucide-react';
-import { MOCK_MILESTONES, MOCK_SUBMISSIONS, MOCK_TEAMS } from '@services/mockData';
 import { formatDateTime, formatFileSize } from '@lib/utils';
 
 export const MilestoneSubmissionScreen: React.FC = () => {
@@ -26,15 +25,83 @@ export const MilestoneSubmissionScreen: React.FC = () => {
   const milestoneId = params?.milestoneId as string | undefined;
   const router = useRouter();
 
-  const [githubUrl, setGithubUrl] = useState('https://github.com/nexgen-ai/autonomous-pipeline');
-  const [demoUrl, setDemoUrl] = useState('https://youtu.be/sample-prototype-demo');
+  const [githubUrl, setGithubUrl] = useState('');
+  const [demoUrl, setDemoUrl] = useState('');
   const [studentNote, setStudentNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submissionsHistory, setSubmissionsHistory] = useState<any[]>([]);
+  const [teamInfo, setTeamInfo] = useState<{ id: string; name: string }>({
+    id: teamId || 'team-mini-6',
+    name: 'Mini 6',
+  });
+  const [milestoneInfo, setMilestoneInfo] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    stageNumber: number;
+    weightage: number;
+  }>({
+    id: milestoneId || 'ms-002',
+    title: 'Milestone Deliverable Evaluation',
+    description: 'Submit your code repository, deliverable bundle, or live demonstration link.',
+    stageNumber: 2,
+    weightage: 25,
+  });
 
-  const team = MOCK_TEAMS.find((t) => t.id === teamId) || MOCK_TEAMS[0];
-  const milestone =
-    MOCK_MILESTONES.find((m) => m.id === milestoneId) || MOCK_MILESTONES[1];
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // 1. Fetch team details if available
+        if (teamId) {
+          const teamRes = await fetch(`/api/v1/mentor/assign-project?teamId=${teamId}`);
+          if (teamRes.ok) {
+            const teamData = await teamRes.json();
+            if (teamData.data) {
+              setTeamInfo({ id: teamData.data.id, name: teamData.data.name });
+            }
+          }
+        }
+
+        // 2. Fetch milestone details
+        const msRes = await fetch('/api/v1/milestones');
+        if (msRes.ok) {
+          const msData = await msRes.json();
+          if (msData.data && Array.isArray(msData.data)) {
+            const matched = msData.data.find(
+              (m: any) => m.id === milestoneId || m.title === milestoneId
+            );
+            if (matched) {
+              setMilestoneInfo({
+                id: matched.id,
+                title: matched.title,
+                description: matched.description || 'Deliverable evaluation',
+                stageNumber: matched.stageNumber || 2,
+                weightage: matched.weightage || 25,
+              });
+            }
+          }
+        }
+
+        // 3. Fetch submission history
+        const subRes = await fetch(
+          `/api/submissions?teamId=${teamId || ''}&milestoneId=${milestoneId || ''}`
+        );
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          if (subData.data && Array.isArray(subData.data)) {
+            setSubmissionsHistory(subData.data);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load submission context:', e);
+      }
+    }
+
+    loadData();
+  }, [teamId, milestoneId]);
+
+  const nextVersionNumber = submissionsHistory.length + 1;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,27 +111,28 @@ export const MilestoneSubmissionScreen: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teamId: team.id,
-          milestoneId: milestone.id,
+          teamId: teamInfo.id,
+          milestoneId: milestoneInfo.id,
           externalUrl: githubUrl || demoUrl,
           studentNote,
         }),
       });
+      setSuccess(true);
+      setTimeout(() => {
+        router.push(`/projects/${teamInfo.id}`);
+      }, 1500);
     } catch (err) {
       console.error('Submission error:', err);
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
-    setSuccess(true);
-    setTimeout(() => {
-      router.push(`/projects/${team.id}`);
-    }, 1500);
   };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* ─── Back Nav ─── */}
       <div className="flex items-center gap-3">
-        <Link href={`/projects/${team.id}`}>
+        <Link href={`/projects/${teamInfo.id}`}>
           <Button
             variant="ghost"
             size="sm"
@@ -75,7 +143,7 @@ export const MilestoneSubmissionScreen: React.FC = () => {
         </Link>
         <span className="text-slate-300">|</span>
         <span className="text-xs text-slate-500 font-medium">
-          {team.name} • Stage {milestone.stageNumber}
+          {teamInfo.name} • Stage {milestoneInfo.stageNumber}
         </span>
       </div>
 
@@ -87,14 +155,14 @@ export const MilestoneSubmissionScreen: React.FC = () => {
               Deliverable Submission Console
             </span>
             <span className="text-xs text-slate-500 font-mono">
-              Weight: {milestone.weightage}%
+              Weight: {milestoneInfo.weightage}%
             </span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 font-display mt-1">
-            {milestone.title}
+            {milestoneInfo.title}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl">
-            {milestone.description}
+            {milestoneInfo.description}
           </p>
         </div>
 
@@ -130,7 +198,7 @@ export const MilestoneSubmissionScreen: React.FC = () => {
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 font-display">
-                  Submission Logged as Version 3!
+                  Submission Logged as Version {nextVersionNumber}!
                 </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   Your deliverable has been cryptographically signed and queued for faculty review. Redirecting to workspace...
@@ -202,7 +270,7 @@ export const MilestoneSubmissionScreen: React.FC = () => {
                     isLoading={submitting}
                     rightIcon={<Send className="w-4 h-4" />}
                   >
-                    Submit Deliverable (v3)
+                    Submit Deliverable (v{nextVersionNumber})
                   </Button>
                 </div>
               </form>
@@ -219,34 +287,42 @@ export const MilestoneSubmissionScreen: React.FC = () => {
             </h3>
 
             <div className="space-y-3">
-              {MOCK_SUBMISSIONS.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-900">
-                      Version {sub.version}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {formatDateTime(sub.submittedAt)}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 font-mono truncate">
-                    {sub.fileName} ({formatFileSize(sub.fileSizeBytes || 0)})
+              {submissionsHistory.length === 0 ? (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
+                  <p className="text-xs text-slate-500">
+                    No deliverables submitted yet. The upcoming submission will be recorded as <strong>Version 1</strong>.
                   </p>
-
-                  {sub.mentorPublicFeedback && (
-                    <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-700 bg-white p-2 rounded border">
-                      <span className="font-semibold text-indigo-700 block text-[10px] uppercase">
-                        Faculty Feedback:
-                      </span>
-                      {sub.mentorPublicFeedback}
-                    </div>
-                  )}
                 </div>
-              ))}
+              ) : (
+                submissionsHistory.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">
+                        Version {sub.version}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {formatDateTime(sub.submittedAt)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 font-mono truncate">
+                      {sub.fileName || sub.externalUrl || 'Direct Deliverable Upload'}
+                    </p>
+
+                    {sub.mentorPublicFeedback && (
+                      <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-700 bg-white p-2 rounded border">
+                        <span className="font-semibold text-indigo-700 block text-[10px] uppercase">
+                          Faculty Feedback:
+                        </span>
+                        {sub.mentorPublicFeedback}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </div>

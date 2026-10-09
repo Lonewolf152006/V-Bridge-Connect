@@ -112,7 +112,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { getOptionalSession } = await import('@/lib/auth/get-session');
-    const { MOCK_ACTIVITIES } = await import('@/services/mockData');
     const session = await getOptionalSession();
 
     let userId = session?.id || '00000000-0000-0000-0000-000000000011';
@@ -223,9 +222,6 @@ export async function POST(request: Request) {
         updatedAt: new Date().toISOString(),
       };
     }
-
-    // Sync in-memory MOCK_ACTIVITIES
-    MOCK_ACTIVITIES.unshift(createdActivity);
 
     return NextResponse.json(
       {
