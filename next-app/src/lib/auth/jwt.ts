@@ -71,7 +71,7 @@ export async function authenticateRequest(request: Request): Promise<TokenPayloa
       };
     }
   } catch {
-    // fall through to AuthError
+    // Session fallback unavailable, fall through
   }
 
   throw new AuthError('Missing or invalid Authorization header', 401);

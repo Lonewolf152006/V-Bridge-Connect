@@ -4,7 +4,7 @@ import React from 'react';
 import { useAppStore } from '@/store/appStore';
 import { StudentDashboard } from '@/screens/student/StudentDashboard';
 import { MentorDashboard } from '@/screens/mentor/MentorDashboard';
-import { AnalyticsAuditReports } from '@/screens/admin/AnalyticsAuditReports';
+import { DirectoryPermissions } from '@/screens/admin/DirectoryPermissions';
 
 export default function DashboardPage() {
   const { currentUser } = useAppStore();
@@ -15,7 +15,7 @@ export default function DashboardPage() {
   }
 
   if (currentUser.role === 'SUPER_ADMIN') {
-    return <AnalyticsAuditReports />;
+    return <DirectoryPermissions />;
   }
 
   if (currentUser.role === 'INDUSTRY_PARTNER') {

@@ -416,6 +416,40 @@ export const WorkspaceRepositoryTab: React.FC = () => {
   const [showEditRepoModal, setShowEditRepoModal] = useState(false);
   const [tempRepoUrl, setTempRepoUrl] = useState(repoUrl);
 
+  // Pull Requests state
+  const [prs, setPrs] = useState<PullRequestItem[]>(INITIAL_PRS);
+  const [showNewPrModal, setShowNewPrModal] = useState(false);
+  const [newPrTitle, setNewPrTitle] = useState('');
+  const [newPrBranch, setNewPrBranch] = useState('feature/buffer-throttle');
+  const [newPrTarget, setNewPrTarget] = useState('main');
+  const [newPrDescription, setNewPrDescription] = useState('');
+
+  const handleCreatePr = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrTitle.trim()) return;
+
+    const newPr: PullRequestItem = {
+      id: prs.length + 10,
+      title: newPrTitle.trim(),
+      branch: newPrBranch,
+      targetBranch: newPrTarget,
+      author: 'Harshad Panchal',
+      authorAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=HarshadPanchal',
+      status: 'OPEN',
+      createdAt: 'Just now',
+      commentsCount: 0,
+      reviewers: [{ name: 'Dr. Sheetal Patil (Lead Mentor)', status: 'PENDING' }],
+      labels: ['student-submission', 'in-review'],
+    };
+
+    setPrs([newPr, ...prs]);
+    setShowNewPrModal(false);
+    setNewPrTitle('');
+    setNewPrDescription('');
+    setRefreshMessage(`Pull request #${newPr.id} created successfully!`);
+    setTimeout(() => setRefreshMessage(null), 4000);
+  };
+
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => ({ ...prev, [path]: !prev[path] }));
   };
@@ -583,7 +617,7 @@ export const WorkspaceRepositoryTab: React.FC = () => {
             }`}
           >
             <GitPullRequest className="w-4 h-4" />
-            <span>Pull Requests (3)</span>
+            <span>Pull Requests ({prs.length})</span>
           </button>
 
           <button
@@ -800,14 +834,14 @@ export const WorkspaceRepositoryTab: React.FC = () => {
               variant="primary"
               size="sm"
               leftIcon={<Plus className="w-3.5 h-3.5" />}
-              onClick={() => alert('Simulate PR creation dialog')}
+              onClick={() => setShowNewPrModal(true)}
             >
               New Pull Request
             </Button>
           </div>
 
           <div className="space-y-3">
-            {INITIAL_PRS.map((pr) => (
+            {prs.map((pr) => (
               <Card key={pr.id} padding="md" className="border-slate-200 hover:border-slate-300">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="space-y-1.5">
@@ -1056,6 +1090,95 @@ export const WorkspaceRepositoryTab: React.FC = () => {
                 Save Repository
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── NEW PULL REQUEST MODAL ─── */}
+      {showNewPrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <GitPullRequest className="w-4 h-4 text-indigo-600" />
+                <span>Open New Pull Request</span>
+              </h3>
+              <button
+                onClick={() => setShowNewPrModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePr} className="space-y-3 text-xs sm:text-sm">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  PR Title / Commit Summary
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newPrTitle}
+                  onChange={(e) => setNewPrTitle(e.target.value)}
+                  placeholder="e.g. feat: Integrate sensory data stream buffer"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Source Branch
+                  </label>
+                  <select
+                    value={newPrBranch}
+                    onChange={(e) => setNewPrBranch(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none"
+                  >
+                    <option value="feature/buffer-throttle">feature/buffer-throttle</option>
+                    <option value="develop">develop</option>
+                    <option value="bugfix/ws-memory-leak">bugfix/ws-memory-leak</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Target Branch
+                  </label>
+                  <select
+                    value={newPrTarget}
+                    onChange={(e) => setNewPrTarget(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:outline-none"
+                  >
+                    <option value="main">main</option>
+                    <option value="develop">develop</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Description & Deliverable Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={newPrDescription}
+                  onChange={(e) => setNewPrDescription(e.target.value)}
+                  placeholder="Describe your architectural changes and milestone verification details..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowNewPrModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" type="submit">
+                  Create Pull Request
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

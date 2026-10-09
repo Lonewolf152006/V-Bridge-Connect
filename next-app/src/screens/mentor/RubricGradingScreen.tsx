@@ -44,15 +44,21 @@ export const RubricGradingScreen: React.FC = () => {
     loadSubmission();
   }, []);
 
-  const submission = liveSubmission || {
+  const submission: any = liveSubmission || {
     id: submissionId || 'sub-live-1',
     milestoneId: 'ms-002',
     teamId: 'team-mini-6',
     stageNumber: 2,
-    status: 'SUBMITTED',
+    status: 'submitted',
     deliverableType: 'GITHUB_URL',
     content: 'https://github.com/vit-capstone-mini6/autonomous-vehicle-telemetry',
+    version: 2,
+    fileName: 'Autonomous_Vehicle_Telemetry_Architecture_v2.pdf',
+    fileSizeBytes: 2450000,
+    checksumSha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
     submittedAt: new Date().toISOString(),
+    submittedBy: { id: 'user-student-1', name: 'Aarav Sharma' },
+    studentNote: 'Updated telemetry pipeline with Kafka stream buffer and addressed faculty feedback from Milestone 1.',
     evaluation: null,
   };
   const milestone = {
@@ -122,17 +128,29 @@ export const RubricGradingScreen: React.FC = () => {
     setIsSubmitting(true);
     try {
       // 1. Submit evaluation and accept submission
+      const rubricScoresArray = Object.entries(scores).map(([criterionId, score]) => ({
+        criterionId,
+        score,
+      }));
+
       await fetch(`/api/v1/submissions/${submission.id}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           publicFeedback,
           privateNote,
-          rubricScores: scores,
+          rubricScores: rubricScoresArray,
           totalScore: calculation.total,
           maxScore: calculation.maxTotal,
         }),
-      });
+      }).catch((err) => console.warn('[Grading] Backend sync fallback:', err));
+
+      // Update mock submission status
+      submission.status = 'accepted';
+      submission.reviewerPublicFeedback = publicFeedback;
+      submission.reviewerPrivateNote = privateNote;
+      submission.totalScore = calculation.total;
+      submission.maxScore = calculation.maxTotal;
 
       // 2. Issue certificate if final milestone checked
       if (issueCertificate && submission.submittedBy?.id) {
@@ -153,7 +171,8 @@ export const RubricGradingScreen: React.FC = () => {
         router.push('/mentor/dashboard');
       }, 1500);
     } catch {
-      // Demo fallback
+      // Fallback
+      submission.status = 'accepted';
       setSaved(true);
       setTimeout(() => {
         router.push('/mentor/dashboard');
@@ -173,9 +192,13 @@ export const RubricGradingScreen: React.FC = () => {
           publicFeedback: publicFeedback || 'Revisions requested.',
           privateNote,
         }),
-      });
+      }).catch((err) => console.warn('[Grading] Revisions sync fallback:', err));
+
+      submission.status = 'changes_requested';
+      submission.reviewerPublicFeedback = publicFeedback || 'Revisions requested.';
+      submission.reviewerPrivateNote = privateNote;
     } catch {
-      // Demo fallback
+      submission.status = 'changes_requested';
     } finally {
       setIsSubmitting(false);
       router.push('/mentor/dashboard');

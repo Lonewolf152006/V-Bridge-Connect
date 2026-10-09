@@ -44,11 +44,38 @@ export async function getRequiredSessionWithRole(
   return user;
 }
 
+import { cookies } from 'next/headers';
+
 /**
  * Get the current session or null (for optional auth).
  */
 export async function getOptionalSession(): Promise<SessionUser | null> {
   const session = await auth();
-  if (!session?.user?.id) return null;
-  return session.user as SessionUser;
+  if (session?.user?.id) return session.user as SessionUser;
+
+  // Fallback: check demo user cookie
+  try {
+    const cookieStore = await cookies();
+    const demoCookie = cookieStore.get('vbridge_demo_user');
+    if (demoCookie?.value) {
+      const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
+      const cleanEmail = (parsed.email || 'student@vit.edu.in').toLowerCase();
+      const parts = cleanEmail.split('@');
+      const cleanName = (parts[0] || 'User')
+        .split('.')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+      return {
+        id: `user-${parts[0].replace(/[^a-zA-Z0-9]/g, '-')}`,
+        email: cleanEmail,
+        name: cleanName,
+        role: (parsed.role || 'student').toLowerCase() as UserRole,
+        departmentId: null,
+        institutionalId: 'INST-2026',
+        avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+      };
+    }
+  } catch {}
+
+  return null;
 }

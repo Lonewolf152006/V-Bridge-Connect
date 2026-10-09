@@ -35,6 +35,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
+import { MOCK_TEAMS } from '@services/mockData';
 import type { Team, Milestone, DeliverableType } from '@/types';
 
 // Pre-defined project templates for quick one-click assignment
@@ -235,6 +236,55 @@ export const MentorDashboard: React.FC = () => {
     } finally {
       setIsRegeneratingCode(false);
     }
+  };
+
+  // ─── Modal 4: Manage Activity Roles ───
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [roleModalTeam, setRoleModalTeam] = useState<Team | null>(null);
+  const [memberRoleMap, setMemberRoleMap] = useState<Record<string, 'LEAD' | 'CONTRIBUTOR'>>({});
+
+  const handleOpenRoleModal = (team: Team) => {
+    setRoleModalTeam(team);
+    const initialMap: Record<string, 'LEAD' | 'CONTRIBUTOR'> = {};
+    team.members.forEach((m) => {
+      initialMap[m.userId] = m.role || 'CONTRIBUTOR';
+    });
+    setMemberRoleMap(initialMap);
+    setIsRoleModalOpen(true);
+  };
+
+  const handleSaveRoles = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleModalTeam) return;
+
+    setTeamsState((prev) =>
+      prev.map((t) => {
+        if (t.id === roleModalTeam.id) {
+          const updatedMembers = t.members.map((m) => ({
+            ...m,
+            role: memberRoleMap[m.userId] || m.role,
+          }));
+          return { ...t, members: updatedMembers };
+        }
+        return t;
+      })
+    );
+
+    // Sync with MOCK_TEAMS
+    const targetMock = MOCK_TEAMS.find((t) => t.id === roleModalTeam.id);
+    if (targetMock) {
+      targetMock.members = targetMock.members.map((m) => ({
+        ...m,
+        role: memberRoleMap[m.userId] || m.role,
+      }));
+    }
+
+    setNotificationBanner({
+      type: 'success',
+      message: `Activity roles updated for ${roleModalTeam.name}.`,
+    });
+    setIsRoleModalOpen(false);
+    setRoleModalTeam(null);
   };
 
   const teams = teamsState.filter((team) => {
@@ -721,7 +771,6 @@ export const MentorDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* ─── Assigned Student Groups Table ─── */}
       <Card padding="none" className="overflow-hidden border-slate-200/90 shadow-sm">
         {/* Table Toolbar */}
@@ -840,6 +889,13 @@ export const MentorDashboard: React.FC = () => {
                           <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.2 rounded">
                             LEAD
                           </span>
+                          <button
+                            onClick={() => handleOpenRoleModal(team)}
+                            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 cursor-pointer"
+                            title="Assign & manage activity roles"
+                          >
+                            Roles
+                          </button>
                         </div>
                         <div className="flex items-center gap-1 pl-6 text-[11px] text-slate-500">
                           <span>+ {otherMembers.length} students:</span>
@@ -1519,6 +1575,91 @@ export const MentorDashboard: React.FC = () => {
           }
         }}
       />
+
+      {/* ─── Modal 5: Manage Activity Roles ─── */}
+      <Modal
+        isOpen={isRoleModalOpen}
+        onClose={() => setIsRoleModalOpen(false)}
+        title={roleModalTeam ? `Activity Roles — ${roleModalTeam.name}` : 'Manage Activity Roles'}
+        description="Designate project leadership and contributor roles for student team members."
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveRoles} className="space-y-4 text-xs sm:text-sm">
+          {roleModalTeam && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">
+                Select the activity role for each student in <strong>{roleModalTeam.name}</strong>. The designated student lead coordinates milestones and pull requests.
+              </p>
+
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-slate-50/50">
+                {roleModalTeam.members.map((m) => {
+                  const currentAssigned = memberRoleMap[m.userId] || 'CONTRIBUTOR';
+                  return (
+                    <div
+                      key={m.userId}
+                      className="p-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar name={m.user.name} size="sm" />
+                        <div>
+                          <div className="font-bold text-slate-900 text-xs">
+                            {m.user.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {m.user.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={currentAssigned}
+                          onChange={(e) => {
+                            const newRole = e.target.value as 'LEAD' | 'CONTRIBUTOR';
+                            setMemberRoleMap((prev) => {
+                              const updated = { ...prev };
+                              // If promoting to LEAD, demote other members to CONTRIBUTOR
+                              if (newRole === 'LEAD') {
+                                Object.keys(updated).forEach((k) => {
+                                  updated[k] = 'CONTRIBUTOR';
+                                });
+                              }
+                              updated[m.userId] = newRole;
+                              return updated;
+                            });
+                          }}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                            currentAssigned === 'LEAD'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <option value="LEAD">Team Lead</option>
+                          <option value="CONTRIBUTOR">Contributor</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRoleModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Save Roles
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

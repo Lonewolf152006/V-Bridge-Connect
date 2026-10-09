@@ -5,6 +5,7 @@
 import type { NextAuthConfig } from 'next-auth';
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   session: { strategy: 'jwt' },
 
   pages: {
@@ -37,22 +38,38 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
-      // Everything else requires an authenticated session
-      if (!session?.user) {
-        return false; // NextAuth redirects to pages.signIn
+      let userRole = (session?.user as { role?: string })?.role?.toLowerCase();
+
+      // Check for demo user cookie
+      const demoCookie = request.cookies.get('vbridge_demo_user');
+      if (demoCookie?.value && !userRole) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
+          userRole = (parsed.role || '').toLowerCase();
+        } catch {
+          userRole = 'student';
+        }
+      }
+
+      // If neither session nor demo cookie is present, redirect to login
+      if (!session?.user && !demoCookie?.value) {
+        return false;
       }
 
       // Role-based path protection
-      const userRole = (session.user as { role?: string }).role;
-
-      if (pathname.startsWith('/coordinator')) {
+      if (pathname.startsWith('/coordinator') || pathname.startsWith('/mentor')) {
         if (userRole !== 'coordinator' && userRole !== 'super_admin') {
           return Response.redirect(new URL('/dashboard', request.nextUrl));
         }
       }
 
       if (pathname.startsWith('/admin')) {
-        if (userRole !== 'super_admin' && userRole !== 'coordinator') {
+        // Faculty coordinators have access to Directory & Roles (/admin/people) and reports
+        if (pathname.startsWith('/admin/people') || pathname.startsWith('/admin/reports')) {
+          if (userRole !== 'super_admin' && userRole !== 'coordinator') {
+            return Response.redirect(new URL('/dashboard', request.nextUrl));
+          }
+        } else if (userRole !== 'super_admin') {
           return Response.redirect(new URL('/dashboard', request.nextUrl));
         }
       }
@@ -62,5 +79,9 @@ export const authConfig: NextAuthConfig = {
   },
 
   providers: [], // Populated in auth.ts with Node.js providers
-  secret: process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET,
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    process.env.JWT_SECRET ||
+    'vbridge-connect-super-secure-production-secret-2026-fallback-key-0123456789',
 };

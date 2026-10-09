@@ -17,6 +17,7 @@ import {
   Copy,
   Check,
   Upload,
+  UploadCloud,
   FileText,
   Search,
   RefreshCw,
@@ -812,10 +813,10 @@ export const CertificateHub: React.FC = () => {
                 </p>
               </div>
 
-              {previewDocCert.externalFileUrl && (
+              {(previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl) && (
                 <div className="pt-2">
                   <a
-                    href={previewDocCert.externalFileUrl}
+                    href={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
@@ -826,6 +827,12 @@ export const CertificateHub: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {previewDocCert.disclaimer && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+                {previewDocCert.disclaimer}
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <Button

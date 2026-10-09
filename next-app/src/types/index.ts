@@ -149,6 +149,11 @@ export interface Submission {
   studentNote?: string;
   submittedAt: string;
   rubricScores?: RubricScore[];
+  status?: string;
+  reviewerPublicFeedback?: string;
+  reviewerPrivateNote?: string;
+  totalScore?: number;
+  maxScore?: number;
   mentorPrivateNote?: string;
   mentorPublicFeedback?: string;
   gradedAt?: string;

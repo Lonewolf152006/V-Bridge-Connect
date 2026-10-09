@@ -21,7 +21,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation =
       case 'COORDINATOR':
         return '/coordinator/dashboard';
       case 'SUPER_ADMIN':
-        return '/admin/reports';
+        return '/admin/people';
       default:
         return '/dashboard';
     }
