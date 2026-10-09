@@ -32,10 +32,10 @@ import {
   Target,
   Check,
   FolderPlus,
+  Layers,
+  Link2,
 } from 'lucide-react';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
-import { WorkspaceRepositoryTab } from './WorkspaceRepositoryTab';
-import { WorkspaceDiscussionTab } from './WorkspaceDiscussionTab';
 import { formatDateTime, getMilestoneBadge, timeAgo } from '@lib/utils';
 import type { Team, Milestone, DeliverableType } from '@/types';
 
@@ -132,47 +132,7 @@ const DEFAULT_TEAMS: Team[] = [
   },
 ];
 
-const DEFAULT_MILESTONES: Milestone[] = [
-  {
-    id: 'ms-001',
-    activityId: 'act-001',
-    title: 'Milestone 1: Problem Definition & Architecture Specification',
-    description: 'System architectural design, component diagrams, hardware Bill-of-Materials, and risk matrix.',
-    stageNumber: 1,
-    status: 'ACCEPTED',
-    dueDate: '2026-10-15',
-    weightage: 20,
-    deliverableType: 'PDF',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'ms-002',
-    activityId: 'act-001',
-    title: 'Milestone 2: Working Prototype & Code Repository Demonstration',
-    description: 'Functional prototype implementation, GitHub repo access with CI checks, and empirical benchmark dataset.',
-    stageNumber: 2,
-    status: 'SUBMITTED',
-    dueDate: '2026-11-01',
-    weightage: 35,
-    deliverableType: 'GITHUB_URL',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'ms-003',
-    activityId: 'act-001',
-    title: 'Milestone 3: Final Defense & Verified Institutional Archive',
-    description: 'Complete project report, video demonstration, comprehensive testing suites, and poster submission.',
-    stageNumber: 3,
-    status: 'OPEN',
-    dueDate: '2026-11-20',
-    weightage: 45,
-    deliverableType: 'ZIP',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_MILESTONES: Milestone[] = [];
 
 export const WorkspaceHub: React.FC = () => {
   const params = useParams();
@@ -183,8 +143,8 @@ export const WorkspaceHub: React.FC = () => {
   const [teamsState, setTeamsState] = useState<Team[]>(DEFAULT_TEAMS);
   const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'team-mini-6');
 
-  // Milestones State
-  const [milestonesState, setMilestonesState] = useState<Milestone[]>(DEFAULT_MILESTONES);
+  // Milestones State (clean and free of fake fabricated milestones)
+  const [milestonesState, setMilestonesState] = useState<Milestone[]>([]);
 
   useEffect(() => {
     async function fetchLiveContext() {
@@ -356,10 +316,6 @@ export const WorkspaceHub: React.FC = () => {
     }
   };
 
-  const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
-  const [isSchedulingMeet, setIsSchedulingMeet] = useState(false);
-  const [meetingFeedback, setMeetingFeedback] = useState<string | null>(null);
-
   const handleCreateMilestoneFromHub = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMilestoneTitle.trim()) return;
@@ -406,58 +362,111 @@ export const WorkspaceHub: React.FC = () => {
     }
   };
 
-  const handleScheduleGoogleMeet = async () => {
-    setIsSchedulingMeet(true);
-    setMeetingFeedback(null);
+  // Planned Meetings State (Faculty plans meeting, Professor uploads/updates meeting link)
+  const [plannedMeetings, setPlannedMeetings] = useState<any[]>([]);
+  const [isPlanMeetingModalOpen, setIsPlanMeetingModalOpen] = useState(false);
+  const [planMeetingTitle, setPlanMeetingTitle] = useState('');
+  const [planMeetingDate, setPlanMeetingDate] = useState('');
+  const [planMeetingAgenda, setPlanMeetingAgenda] = useState('');
+  const [planMeetingInitialLink, setPlanMeetingInitialLink] = useState('');
+  const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+  const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null);
+  const [uploadLinkValue, setUploadLinkValue] = useState<string>('');
+  const [isUploadingLink, setIsUploadingLink] = useState(false);
+  const [meetActionSuccess, setMeetActionSuccess] = useState<string | null>(null);
+
+  const fetchMeetings = async (teamIdToFetch: string) => {
     try {
-      const now = new Date();
-      const startTime = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
-      const endTime = new Date(now.getTime() + 120 * 60 * 1000).toISOString();
-
-      const res = await fetch('/api/v1/meetings/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          summary: `Mentor Sync: ${currentTeam.name} (${currentActivity.title})`,
-          description: 'Official academic milestone check-in and unblocking session.',
-          startTime,
-          endTime,
-          attendeeEmails: [
-            currentTeam?.mentor?.email || 'sheetal.patil@vit.edu.in',
-            currentUser.email,
-          ].filter(Boolean),
-        }),
-      });
-
-      const data = await res.json();
-      if (data.meetLink) {
-        setMeetingUrl(data.meetLink);
-        setMeetingFeedback('Google Meet link created successfully on Google Calendar!');
-      } else {
-        const fallback = 'https://meet.google.com/vbc-mini-project-sync';
-        setMeetingUrl(fallback);
-        setMeetingFeedback('Meeting scheduled with live Google Meet conference link.');
+      const res = await fetch(`/api/v1/meetings?teamId=${teamIdToFetch}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlannedMeetings(data.meetings || []);
       }
-    } catch {
-      const fallback = 'https://meet.google.com/vbc-mini-project-sync';
-      setMeetingUrl(fallback);
-      setMeetingFeedback('Meeting link generated.');
-    } finally {
-      setIsSchedulingMeet(false);
+    } catch (e) {
+      console.warn('Failed to load meetings:', e);
     }
   };
 
-  // Tabs definition (Audit Trail and Team Members removed per requirements)
+  useEffect(() => {
+    if (currentTeam?.id) {
+      fetchMeetings(currentTeam.id);
+    }
+  }, [currentTeam?.id]);
+
+  const handlePlanMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planMeetingTitle.trim() || !planMeetingDate) return;
+
+    setIsSavingMeeting(true);
+    try {
+      const res = await fetch('/api/v1/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamId: currentTeam.id,
+          title: planMeetingTitle.trim(),
+          scheduledAt: planMeetingDate,
+          agenda: planMeetingAgenda.trim(),
+          meetLink: planMeetingInitialLink.trim(),
+          hostName: currentTeam.mentor?.name || 'Dr. Sheetal Patil',
+          hostRole: 'Faculty Guide',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPlannedMeetings((prev) => [data.meeting, ...prev]);
+        setIsPlanMeetingModalOpen(false);
+        setPlanMeetingTitle('');
+        setPlanMeetingDate('');
+        setPlanMeetingAgenda('');
+        setPlanMeetingInitialLink('');
+        setMeetActionSuccess('Meeting scheduled successfully!');
+        setTimeout(() => setMeetActionSuccess(null), 4000);
+      }
+    } catch (err) {
+      console.error('Failed to plan meeting:', err);
+    } finally {
+      setIsSavingMeeting(false);
+    }
+  };
+
+  const handleUploadProfessorLink = async (meetingId: string) => {
+    if (!uploadLinkValue.trim()) return;
+
+    setIsUploadingLink(true);
+    try {
+      const res = await fetch('/api/v1/meetings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId,
+          meetLink: uploadLinkValue.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPlannedMeetings((prev) =>
+          prev.map((m) => (m.id === meetingId ? data.meeting : m))
+        );
+        setEditingMeetingId(null);
+        setUploadLinkValue('');
+        setMeetActionSuccess('Professor meeting link updated successfully!');
+        setTimeout(() => setMeetActionSuccess(null), 4000);
+      }
+    } catch (err) {
+      console.error('Failed to upload link:', err);
+    } finally {
+      setIsUploadingLink(false);
+    }
+  };
+
+  // Tabs definition (Repository, Slack Discussion, and Fake Rubrics removed per user requirements)
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'milestones', label: 'Milestones & Deliverables' },
     { id: 'meetings', label: 'Mentor Sync & Meet' },
-    { id: 'repository', label: 'Repository & Code' },
-    // FR-092: Hide grades & rubrics from Industry Partners
-    ...(currentUser.role !== 'INDUSTRY_PARTNER'
-      ? [{ id: 'rubrics', label: 'Grading & Rubrics' }]
-      : []),
-    { id: 'discussion', label: 'Slack Discussion & Files' },
   ];
 
   return (
@@ -498,7 +507,7 @@ export const WorkspaceHub: React.FC = () => {
                   className="bg-transparent font-bold text-indigo-900 text-xs focus:outline-none cursor-pointer"
                 >
                   {teamsState.map((t) => {
-                    const lead = t.members.find((m) => m.role === 'LEAD')?.user.name.split(' ')[0] || 'Team';
+                    const lead = (t.members || []).find((m) => m.role === 'LEAD')?.user.name.split(' ')[0] || 'Team';
                     return (
                       <option key={t.id} value={t.id}>
                         {t.name} ({lead}&apos;s Group)
@@ -584,17 +593,28 @@ export const WorkspaceHub: React.FC = () => {
             </div>
 
             {currentUser.role === 'STUDENT' ? (
-              <Link
-                href={`/projects/${currentTeam.id}/milestones/ms-002/submit`}
-                className="flex-shrink-0"
-              >
-                <Button
-                  variant="primary"
-                  leftIcon={<UploadCloud className="w-4 h-4" />}
+              milestonesState.length > 0 ? (
+                <Link
+                  href={`/projects/${currentTeam.id}/milestones/${milestonesState[0].id}/submit`}
+                  className="flex-shrink-0"
                 >
-                  Submit Milestone 2
+                  <Button
+                    variant="primary"
+                    leftIcon={<UploadCloud className="w-4 h-4" />}
+                  >
+                    Submit Deliverable
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="text-slate-400"
+                >
+                  No Milestones Open
                 </Button>
-              </Link>
+              )
             ) : currentUser.role === 'COORDINATOR' || currentUser.role === 'INDUSTRY_PARTNER' ? (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Button
@@ -618,14 +638,14 @@ export const WorkspaceHub: React.FC = () => {
               </div>
             ) : (
               <Link
-                href="/admin/people"
+                href="/admin/reports"
                 className="flex-shrink-0"
               >
                 <Button
                   variant="outline"
                   leftIcon={<CheckCircle2 className="w-4 h-4 text-indigo-600" />}
                 >
-                  Directory & Roles
+                  Accreditation Reports
                 </Button>
               </Link>
             )}
@@ -651,152 +671,187 @@ export const WorkspaceHub: React.FC = () => {
       </Card>
 
       {/* ─── TAB 1: OVERVIEW ─── */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {/* Urgent Milestone Box */}
-            <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                    {currentUser.role === 'STUDENT' ? 'Next Deliverable Deadline' : 'Active Deliverable Stage'}
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Milestone 2: Working Prototype & Demo Recording
-                </h3>
-                <p className="text-xs text-slate-600">
-                  {currentUser.role === 'STUDENT'
-                    ? 'GitHub URL + 5-minute video demonstration required. Weight: 35%.'
-                    : currentUser.role === 'COORDINATOR'
-                    ? 'Student deliverable submission pending your review and rubric evaluation.'
-                    : 'Working prototype sprint in progress. You can review connected code commits and test links.'}
-                </p>
-              </div>
+      {activeTab === 'overview' && (() => {
+        const activeMilestone =
+          milestonesState.find((m) => m.status !== 'ACCEPTED') ||
+          milestonesState[0];
 
-              {currentUser.role === 'STUDENT' ? (
-                <Link href={`/projects/${currentTeam.id}/milestones/ms-002/submit`}>
-                  <Button variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700">
-                    Submit Now
-                  </Button>
-                </Link>
-              ) : currentUser.role === 'COORDINATOR' ? (
-                <Link href="/coordinator/grading">
-                  <Button variant="primary" size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-                    Review & Grade
-                  </Button>
-                </Link>
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Active Milestone Status Box */}
+              {activeMilestone ? (
+                <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                        {currentUser.role === 'STUDENT' ? 'Next Deliverable Deadline' : 'Active Deliverable Stage'}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {activeMilestone.title}
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {activeMilestone.description || 'Deliverable submission pending review and evaluation.'}
+                    </p>
+                  </div>
+
+                  {currentUser.role === 'STUDENT' ? (
+                    <Link href={`/projects/${currentTeam.id}/milestones/${activeMilestone.id}/submit`}>
+                      <Button variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700">
+                        Submit Now
+                      </Button>
+                    </Link>
+                  ) : currentUser.role === 'COORDINATOR' ? (
+                    <Link href="/coordinator/grading">
+                      <Button variant="primary" size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                        Review & Grade
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('milestones')}>
+                      View Milestone
+                    </Button>
+                  )}
+                </div>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => setActiveTab('repository')}>
-                  View Code
-                </Button>
+                <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                        Project Milestone Tracking
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      No Active Milestones Configured
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {currentUser.role === 'STUDENT'
+                        ? 'Your faculty mentor or department coordinator will define project milestones and deliverables.'
+                        : 'Create and configure milestone criteria and deliverables for this student group.'}
+                    </p>
+                  </div>
+                  {(currentUser.role === 'COORDINATOR' || currentUser.role === 'INDUSTRY_PARTNER' || currentUser.role === 'SUPER_ADMIN') && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setIsAddMilestoneModalOpen(true)}
+                      leftIcon={<Plus className="w-4 h-4" />}
+                    >
+                      + Add Milestone
+                    </Button>
+                  )}
+                </div>
               )}
+
+              {/* Project Synopsis */}
+              <Card padding="md">
+                <h3 className="text-sm font-bold text-slate-900 font-display mb-2">
+                  Project Synopsis & Scope
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  {currentActivity.description}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                  <div className="p-2.5 rounded-xl bg-slate-50">
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                      Category
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 mt-0.5">
+                      {currentActivity.category}
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50">
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                      Total Milestones
+                    </div>
+                    <div className="text-xs font-bold text-indigo-600 mt-0.5">
+                      {milestonesState.length} Stages
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50">
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                      Team Size
+                    </div>
+                    <div className="text-xs font-bold text-emerald-600 mt-0.5">
+                      {currentTeam.members?.length || 0} Members
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50">
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                      Planned Meetings
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 mt-0.5">
+                      {plannedMeetings.length} Scheduled
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
 
-            {/* Project Synopsis */}
-            <Card padding="md">
-              <h3 className="text-sm font-bold text-slate-900 font-display mb-2">
-                Project Synopsis & Scope
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                {currentActivity.description}
-              </p>
-
-              <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                <div className="p-2.5 rounded-xl bg-slate-50">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">
-                    Category
-                  </div>
-                  <div className="text-xs font-bold text-slate-800 mt-0.5">
-                    {currentActivity.category}
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">
-                    Total Weightage
-                  </div>
-                  <div className="text-xs font-bold text-indigo-600 mt-0.5">
-                    100 Points
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">
-                    Completed
-                  </div>
-                  <div className="text-xs font-bold text-emerald-600 mt-0.5">
-                    20 / 100 Pts
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold">
-                    Target Defense
-                  </div>
-                  <div className="text-xs font-bold text-slate-800 mt-0.5">
-                    15 Nov 2026
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Right Sidebar: Quick Team & Resources */}
-          <div className="space-y-6">
-            <Card padding="md">
-              <h3 className="text-sm font-bold text-slate-900 font-display mb-3 flex items-center justify-between">
-                <span>Deliverables & Sprint Health</span>
-                <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>On Track</span>
-                </span>
-              </h3>
-              <div className="space-y-3">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-800">Sprint 2 Target</span>
-                    <span className="font-mono text-indigo-600 font-bold">15 Nov 2026</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: '65%' }} />
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>M1 Completed (80 Pts)</span>
-                    <span>M2 In Progress</span>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                  <div className="space-y-0.5">
-                    <div className="font-semibold text-slate-800">Live Code Sync</div>
-                    <div className="text-[10px] text-slate-400 font-mono">nexgen-ai/pipeline (main)</div>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                    Synced
+            {/* Right Sidebar: Team Roster & Faculty Mentorship */}
+            <div className="space-y-6">
+              <Card padding="md">
+                <h3 className="text-sm font-bold text-slate-900 font-display mb-3 flex items-center justify-between">
+                  <span>Team Roster</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                    {currentTeam.members?.length || 0} Members
                   </span>
+                </h3>
+                <div className="space-y-2">
+                  {(currentTeam.members || []).map((m) => (
+                    <div
+                      key={m.userId}
+                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <InitialsAvatar name={m.user.name} size="sm" />
+                        <div className="truncate">
+                          <div className="font-semibold text-slate-900 truncate">{m.user.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono truncate">{m.user.email}</div>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          m.role === 'LEAD'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {m.role === 'LEAD' ? 'Team Lead' : 'Member'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card padding="md">
-              <h3 className="text-sm font-bold text-slate-900 font-display mb-3">
-                Connected Repositories
-              </h3>
-              <a
-                href="https://github.com/nexgen-ai/autonomous-pipeline"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Code2 className="w-4 h-4" />
-                  <span className="text-xs font-mono">nexgen-ai/pipeline</span>
+              <Card padding="md">
+                <h3 className="text-sm font-bold text-slate-900 font-display mb-3">
+                  Faculty & Industry Mentorship
+                </h3>
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 text-xs space-y-1">
+                    <div className="text-[10px] uppercase font-bold text-indigo-700">Faculty Guide</div>
+                    <div className="font-bold text-slate-900">{currentTeam.mentor?.name || 'Dr. Sheetal Patil'}</div>
+                    <div className="text-slate-500 text-[11px]">{currentTeam.mentor?.email || 'sheetal.patil@engineering.edu'}</div>
+                  </div>
+
+                  {currentTeam.industryMentorName && (
+                    <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-100 text-xs space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-amber-800">Industry Partner</div>
+                      <div className="font-bold text-slate-900">{currentTeam.industryMentorName}</div>
+                      <div className="text-slate-500 text-[11px]">Domain Mentor & Industry Evaluator</div>
+                    </div>
+                  )}
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              </a>
-            </Card>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── TAB 2: MILESTONES ─── */}
       {activeTab === 'milestones' && (
@@ -822,8 +877,13 @@ export const WorkspaceHub: React.FC = () => {
                   + Add Milestone
                 </Button>
               )}
-              {currentUser.role === 'STUDENT' && (
-                <Link href={`/projects/${currentTeam.id}/milestones/ms-002/submit`}>
+              {currentUser.role === 'STUDENT' && milestonesState.length > 0 && (
+                <Link
+                  href={`/projects/${currentTeam.id}/milestones/${
+                    milestonesState.find((m) => m.status !== 'ACCEPTED')?.id ||
+                    milestonesState[0].id
+                  }/submit`}
+                >
                   <Button variant="primary" size="sm">
                     Submit Deliverable
                   </Button>
@@ -832,72 +892,89 @@ export const WorkspaceHub: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            {milestonesState.map((ms) => {
-              const badge = getMilestoneBadge(ms.status);
-              return (
-                <Card key={ms.id} padding="md" className="border-slate-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-indigo-600">
-                          Stage {ms.stageNumber} • {ms.weightage}% Weight
-                        </span>
-                        <span
-                          className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${badge.classes}`}
-                        >
-                          {badge.label}
-                        </span>
-                        <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {ms.deliverableType}
-                        </span>
+          {milestonesState.length === 0 ? (
+            <Card padding="lg" className="text-center py-12 border-dashed border-slate-200">
+              <Layers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No Milestones Configured Yet</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                Stage deliverables and evaluation criteria have not been set for this project yet. Faculty mentors and coordinators can define project milestones.
+              </p>
+              {(currentUser.role === 'COORDINATOR' || currentUser.role === 'INDUSTRY_PARTNER' || currentUser.role === 'SUPER_ADMIN') && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={() => setIsAddMilestoneModalOpen(true)}
+                >
+                  Create First Milestone
+                </Button>
+              )}
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {milestonesState.map((ms) => {
+                const badge = getMilestoneBadge(ms.status);
+                return (
+                  <Card key={ms.id} padding="md" className="border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-indigo-600">
+                            Stage {ms.stageNumber} • {ms.weightage}% Weight
+                          </span>
+                          <span
+                            className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${badge.classes}`}
+                          >
+                            {badge.label}
+                          </span>
+                          <span className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {ms.deliverableType}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          {ms.title}
+                        </h3>
+                        <p className="text-xs text-slate-500">{ms.description}</p>
+                        {ms.dueDate && (
+                          <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Target: {new Date(ms.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                        )}
                       </div>
-                      <h3 className="text-base font-bold text-slate-900">
-                        {ms.title}
-                      </h3>
-                      <p className="text-xs text-slate-500">{ms.description}</p>
-                      {ms.dueDate && (
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Target: {new Date(ms.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      {ms.status === 'ACCEPTED' ? (
-                        <div className="text-right">
-                          <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 justify-end">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approved (v2)</span>
+                      <div className="flex items-center gap-3">
+                        {ms.status === 'ACCEPTED' ? (
+                          <div className="text-right">
+                            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 justify-end">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Approved</span>
+                            </span>
+                          </div>
+                        ) : currentUser.role === 'STUDENT' ? (
+                          <Link
+                            href={`/projects/${currentTeam.id}/milestones/${ms.id}/submit`}
+                          >
+                            <Button variant="outline" size="sm">
+                              Submit Deliverable
+                            </Button>
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                            Active Stage
                           </span>
-                          <span className="text-[11px] text-slate-400">
-                            Score: 80 / 100 Pts
-                          </span>
-                        </div>
-                      ) : currentUser.role === 'STUDENT' ? (
-                        <Link
-                          href={`/projects/${currentTeam.id}/milestones/${ms.id}/submit`}
-                        >
-                          <Button variant="outline" size="sm">
-                            Submit Deliverable
-                          </Button>
-                        </Link>
-                      ) : (
-                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                          Active Stage
-                        </span>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ─── TAB: MEETINGS & GOOGLE MEET ─── */}
+      {/* ─── TAB: MEETINGS & PROFESSOR VIDEO CALL ─── */}
       {activeTab === 'meetings' && (
         <div className="space-y-6">
           <Card padding="lg" className="border-indigo-100 bg-gradient-to-br from-white via-indigo-50/20 to-slate-50">
@@ -905,135 +982,192 @@ export const WorkspaceHub: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">
-                    Google Meet Integration (Live)
+                    Mentor Check-ins & Viva Reviews
                   </span>
                 </div>
                 <h2 className="text-xl font-extrabold text-slate-900 font-display mt-1">
-                  Synchronous Mentorship & Office Hours
+                  Planned Meetings & Video Sessions
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                  Schedule direct 1:1 or team defense video sessions synchronized with Google Calendar.
+                  Plan upcoming project syncs, reviews, or viva sessions. The professor can paste and update the meeting link anytime.
                 </p>
               </div>
 
               <Button
                 variant="primary"
-                onClick={handleScheduleGoogleMeet}
-                isLoading={isSchedulingMeet}
-                leftIcon={<Video className="w-4 h-4" />}
+                onClick={() => setIsPlanMeetingModalOpen(true)}
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="bg-indigo-600 hover:bg-indigo-700"
               >
-                Schedule Google Meet Session
+                + Plan a Meeting
               </Button>
             </div>
 
-            {meetingFeedback && (
+            {meetActionSuccess && (
               <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between">
-                <span>{meetingFeedback}</span>
-              </div>
-            )}
-
-            {meetingUrl && (
-              <div className="mt-4 p-4 bg-slate-900 text-white rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-                <div className="space-y-1">
-                  <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Active Conference Room</span>
-                  </div>
-                  <div className="text-sm font-semibold">{meetingUrl}</div>
-                  <div className="text-xs text-slate-400">Attendees: Siddharth Chen, Dr. Eleanor Vance, Prof. Arjun Mehta</div>
-                </div>
-
-                <a
-                  href={meetingUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-shrink-0"
-                >
-                  <Button variant="primary" size="md" leftIcon={<Video className="w-4 h-4" />}>
-                    Join Google Meet Now
-                  </Button>
-                </a>
+                <span>{meetActionSuccess}</span>
               </div>
             )}
           </Card>
 
-          {/* Past Meeting Logs */}
-          <Card padding="md" className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 font-display">Recent Governance Check-ins</h3>
-            <div className="space-y-2">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <div className="font-semibold text-slate-800">Sprint 1 Architecture Review</div>
-                  <div className="text-slate-400">Completed on 28 Sep 2026 • 45 mins</div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-medium">Recorded</span>
-              </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <div className="font-semibold text-slate-800">Milestone 1 Pre-submission Q&A</div>
-                  <div className="text-slate-400">Completed on 30 Sep 2026 • 30 mins</div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-medium">Recorded</span>
-              </div>
+          {/* Planned Meetings List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 font-display flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                <span>Scheduled Meetings ({plannedMeetings.length})</span>
+              </h3>
             </div>
-          </Card>
+
+            {plannedMeetings.length === 0 ? (
+              <Card padding="lg" className="text-center py-12 border-dashed border-slate-200">
+                <Video className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h4 className="text-base font-bold text-slate-800">No Meetings Planned Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                  Schedule your team check-ins, sprint reviews, or viva defense sessions. The faculty professor will attach the meeting link.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={() => setIsPlanMeetingModalOpen(true)}
+                >
+                  Plan First Meeting
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {plannedMeetings.map((meet) => {
+                  const hasLink = Boolean(meet.meetLink && meet.meetLink.trim());
+                  const isFacultyOrAdmin =
+                    currentUser.role === 'COORDINATOR' ||
+                    currentUser.role === 'INDUSTRY_PARTNER' ||
+                    currentUser.role === 'SUPER_ADMIN';
+
+                  return (
+                    <Card key={meet.id} padding="md" className="border-slate-200 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5" />
+                              {new Date(meet.scheduledAt).toLocaleString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {hasLink ? (
+                              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                Link Available
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                Awaiting Professor Link
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 className="text-base font-bold text-slate-900">{meet.title}</h4>
+                          {meet.agenda && (
+                            <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                              <span className="font-semibold text-slate-700">Agenda: </span>
+                              {meet.agenda}
+                            </p>
+                          )}
+                          <div className="text-[11px] text-slate-400">
+                            Organized by <span className="font-semibold text-slate-600">{meet.hostName || 'Faculty Guide'}</span> ({meet.hostRole || 'Mentor'})
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          {hasLink ? (
+                            <a
+                              href={meet.meetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<Video className="w-4 h-4" />}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                              >
+                                Join Video Call Now
+                              </Button>
+                            </a>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 italic">
+                              Link not added yet
+                            </span>
+                          )}
+
+                          {isFacultyOrAdmin && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              leftIcon={<Link2 className="w-3.5 h-3.5" />}
+                              onClick={() => {
+                                setEditingMeetingId(meet.id);
+                                setUploadLinkValue(meet.meetLink || '');
+                              }}
+                            >
+                              {hasLink ? 'Update Link' : 'Upload Meeting Link'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Professor Meeting Link Uploader Drawer / Box */}
+                      {editingMeetingId === meet.id && (
+                        <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                              <Link2 className="w-4 h-4 text-indigo-600" />
+                              Professor / Mentor: Provide Video Meeting Link
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingMeetingId(null)}
+                              className="text-xs text-slate-400 hover:text-slate-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="Paste Google Meet, Zoom, or Teams URL (e.g., https://meet.google.com/abc-defg-hij)"
+                              value={uploadLinkValue}
+                              onChange={(e) => setUploadLinkValue(e.target.value)}
+                              className="flex-1 text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 font-mono"
+                            />
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              isLoading={isUploadingLink}
+                              onClick={() => handleUploadProfessorLink(meet.id)}
+                            >
+                              Save Link
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            Once saved, all students and team members can click &apos;Join Video Call Now&apos; directly from this workspace.
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
-
-      {/* ─── TAB 3: REPOSITORY & CODE (Interactive Multi-branch, Commits, File Tree, PRs, CI/CD) ─── */}
-      {activeTab === 'repository' && <WorkspaceRepositoryTab />}
-
-      {/* ─── TAB 5: GRADING & RUBRICS (Hidden from Industry Partners FR-092) ─── */}
-      {activeTab === 'rubrics' && (
-        <Card padding="md" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 font-display">
-                Evaluated Rubrics & Accreditations
-              </h3>
-              <p className="text-xs text-slate-500">
-                Audited faculty reviews and milestone score sheets
-              </p>
-            </div>
-            <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
-              Passed M1 with B+
-            </span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-800">
-                Milestone 1: System Architecture Spec (v2)
-              </div>
-              <span className="text-xs text-slate-500">
-                Evaluator: Dr. Eleanor Vance
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-slate-400">Technical Feasibility</div>
-                <div className="text-sm font-bold text-indigo-600">8 / 10</div>
-              </div>
-              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-slate-400">Academic Rigor</div>
-                <div className="text-sm font-bold text-indigo-600">9 / 10</div>
-              </div>
-              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                <div className="text-[10px] text-slate-400">Standards & Quality</div>
-                <div className="text-sm font-bold text-indigo-600">7 / 10</div>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
-              <strong>Faculty Feedback:</strong> &quot;Excellent architectural revision. Please finalize docstrings for the WebSocket bridge before the midterm defense.&quot;
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* ─── TAB 6: SLACK-STYLE DISCUSSION & CHAT (Multi-channel, file sending, mentor/student/partner) ─── */}
-      {activeTab === 'discussion' && <WorkspaceDiscussionTab currentTeam={currentTeam} />}
 
       {/* ─── ADD MILESTONE MODAL (Faculty Mentor & Industry Expert) ─── */}
       <Modal
@@ -1241,6 +1375,94 @@ export const WorkspaceHub: React.FC = () => {
               leftIcon={<Check className="w-4 h-4" />}
             >
               Save & Assign Project
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── PLAN MEETING MODAL ─── */}
+      <Modal
+        isOpen={isPlanMeetingModalOpen}
+        onClose={() => setIsPlanMeetingModalOpen(false)}
+        title="Plan & Schedule Team Meeting"
+        maxWidth="lg"
+      >
+        <form onSubmit={handlePlanMeeting} className="space-y-4">
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 leading-relaxed">
+            Schedule a synchronous session for <span className="font-bold">{currentTeam.name}</span>. The meeting will appear immediately in the team&apos;s workspace, and the faculty mentor can upload or update the video link anytime.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Meeting Title *
+            </label>
+            <input
+              type="text"
+              required
+              value={planMeetingTitle}
+              onChange={(e) => setPlanMeetingTitle(e.target.value)}
+              placeholder="e.g. Sprint Architecture Review & Mentor Check-in"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Date & Time *
+              </label>
+              <input
+                type="datetime-local"
+                required
+                value={planMeetingDate}
+                onChange={(e) => setPlanMeetingDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Meeting Video Link (Optional)
+              </label>
+              <input
+                type="url"
+                value={planMeetingInitialLink}
+                onChange={(e) => setPlanMeetingInitialLink(e.target.value)}
+                placeholder="Google Meet / Zoom / MS Teams URL"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Meeting Agenda & Topics
+            </label>
+            <textarea
+              rows={3}
+              value={planMeetingAgenda}
+              onChange={(e) => setPlanMeetingAgenda(e.target.value)}
+              placeholder="Topics to discuss, deliverables to present, questions for the mentor..."
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPlanMeetingModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSavingMeeting}
+              leftIcon={<Calendar className="w-4 h-4" />}
+            >
+              Schedule Meeting
             </Button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
@@ -239,6 +239,93 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
   const [snippetCode, setSnippetCode] = useState('');
   const [snippetLanguage, setSnippetLanguage] = useState('python');
 
+  // Live Database Conversation Sync
+  const [liveConversationId, setLiveConversationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function initConversation() {
+      try {
+        const res = await fetch('/api/v1/conversations');
+        if (!res.ok) return;
+        const json = await res.json();
+        const convList = json.data || [];
+
+        // Match conversation by teamId or team name
+        let matched = convList.find(
+          (c: any) =>
+            (c.teamId && c.teamId === activeTeam.id) ||
+            (c.name && c.name.toLowerCase().includes(activeTeam.name.toLowerCase()))
+        );
+
+        if (!matched && activeTeam.id) {
+          try {
+            const createRes = await fetch('/api/v1/conversations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'group',
+                name: `${activeTeam.name} Discussion`,
+                teamId: activeTeam.id,
+              }),
+            });
+            if (createRes.ok) {
+              const cJson = await createRes.json();
+              matched = cJson.data;
+            }
+          } catch {
+            // Ignore
+          }
+        }
+
+        if (matched && isMounted) {
+          setLiveConversationId(matched.id);
+          const msgRes = await fetch(`/api/v1/conversations/${matched.id}/messages`);
+          if (msgRes.ok) {
+            const mJson = await msgRes.json();
+            const dbMsgs = mJson.data || [];
+            if (dbMsgs.length > 0 && isMounted) {
+              const mapped: ChatMessage[] = dbMsgs.map((m: any) => ({
+                id: m.id,
+                channelId: defaultChannelId,
+                senderId: m.senderId,
+                senderName: m.sender?.name || 'Member',
+                role: (m.sender?.role?.toUpperCase() || 'STUDENT') as any,
+                timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                text: m.content,
+                reactions: [],
+                attachments: m.attachmentUrl
+                  ? [
+                      {
+                        id: `att-${m.id}`,
+                        name: m.attachmentName || 'Attachment',
+                        size: 'Uploaded',
+                        type: 'generic',
+                        url: m.attachmentUrl,
+                      },
+                    ]
+                  : undefined,
+              }));
+
+              setMessages((prev) => {
+                const existing = new Set(prev.map((p) => p.id));
+                const fresh = mapped.filter((x) => !existing.has(x.id));
+                return [...prev, ...fresh];
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Workspace discussion sync warning:', err);
+      }
+    }
+
+    initConversation();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTeam.id, activeTeam.name, defaultChannelId]);
+
   // Role simulator so user can test sending as Student, Faculty Coordinator, or Industry Mentor
   const [simulatedRole, setSimulatedRole] = useState<'CURRENT' | 'COORDINATOR' | 'INDUSTRY_PARTNER'>('CURRENT');
 
@@ -342,7 +429,7 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
     setStagedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() && stagedFiles.length === 0 && !snippetCode.trim()) return;
 
@@ -366,14 +453,16 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
       };
     }
 
+    const messageText = inputText.trim();
+    const tempId = `msg-${Date.now()}`;
     const newChatMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: tempId,
       channelId: activeChannel,
       senderId: sender.id,
       senderName: sender.name,
       role: sender.role,
       timestamp: 'Just now',
-      text: inputText.trim(),
+      text: messageText,
       codeSnippet: snippetCode.trim()
         ? { language: snippetLanguage, code: snippetCode.trim() }
         : undefined,
@@ -390,6 +479,31 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
+
+    // Persist to Live Database via POST /api/v1/conversations/:id/messages
+    if (liveConversationId && messageText) {
+      try {
+        const res = await fetch(`/api/v1/conversations/${liveConversationId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: messageText,
+            attachmentUrl: stagedFiles[0]?.url || undefined,
+            attachmentName: stagedFiles[0]?.name || undefined,
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.id) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, id: json.data.id } : m))
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Could not persist message to live database:', err);
+      }
+    }
   };
 
   const toggleReaction = (messageId: string, emoji: string) => {

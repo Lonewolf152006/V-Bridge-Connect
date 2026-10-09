@@ -54,3 +54,36 @@ export async function DELETE(
     return Response.json({ error: error.message || 'Failed to remove member' }, { status: 400 });
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth(request, 'student', 'coordinator', 'super_admin', 'industry_partner');
+    const { id } = await params;
+    const body = await request.json();
+
+    if (body.newLeadUserId) {
+      const result = await teamService.changeLead(id, body.newLeadUserId, user);
+      return Response.json({ success: true, data: result });
+    }
+
+    if (body.memberRoles && typeof body.memberRoles === 'object') {
+      const leadEntry = Object.entries(body.memberRoles).find(
+        ([_, role]) => String(role).toUpperCase() === 'LEAD'
+      );
+      if (leadEntry) {
+        const result = await teamService.changeLead(id, leadEntry[0], user);
+        return Response.json({ success: true, data: result });
+      }
+    }
+
+    return Response.json({ success: true });
+  } catch (error: any) {
+    if (error instanceof AuthError) {
+      return Response.json({ error: error.message }, { status: error.statusCode });
+    }
+    return Response.json({ error: error.message || 'Failed to update member roles' }, { status: 400 });
+  }
+}

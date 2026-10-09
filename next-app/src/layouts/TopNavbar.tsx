@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAppStore, MOCK_USERS } from '@/store/appStore';
-import { Bell, Search, Menu, Building2, Check, ExternalLink, ChevronDown, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
+import { Bell, Search, Menu, Building2, Check, ExternalLink, ChevronDown, ShieldCheck, LogOut, Sparkles, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { roleLabel, timeAgo, cn } from '@/lib/utils';
@@ -40,7 +40,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
     }
     setShowUserMenu(false);
     if (newRole === 'SUPER_ADMIN') {
-      router.push('/admin/people');
+      router.push('/admin/reports');
     } else if (newRole === 'COORDINATOR') {
       router.push('/coordinator/dashboard');
     } else {
@@ -285,12 +285,12 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
 
               <div className="pt-2 border-t border-slate-100 flex flex-col gap-1 text-xs">
                 <Link
-                  href="/admin/people"
+                  href="/admin/reports"
                   onClick={() => setShowUserMenu(false)}
                   className="px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-medium flex items-center gap-2"
                 >
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>Directory & Roles Console</span>
+                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+                  <span>Institutional Reports</span>
                 </Link>
                 <button
                   onClick={handleLogout}

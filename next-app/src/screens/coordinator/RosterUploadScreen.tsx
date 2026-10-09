@@ -17,6 +17,10 @@ import {
   RefreshCw,
   FolderGit2,
   ShieldCheck,
+  FileType,
+  FileUp,
+  Eye,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
@@ -37,17 +41,26 @@ interface ParsedGroup {
 }
 
 export const RosterUploadScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'excel' | 'paste'>('excel');
+  const [activeTab, setActiveTab] = useState<'excel' | 'pdf' | 'paste'>('excel');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<any | null>(null);
+
+  // PDF processing state
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [pdfFileSize, setPdfFileSize] = useState<number | null>(null);
+  const [pdfExtractedStats, setPdfExtractedStats] = useState<{ groups: number; students: number } | null>(null);
+  const [showRawExtracted, setShowRawExtracted] = useState(false);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   // Parsed groups staging
   const [parsedGroups, setParsedGroups] = useState<ParsedGroup[]>([]);
   const [activityTitle, setActivityTitle] = useState('Semester 5 Mini Project');
   const [departmentName, setDepartmentName] = useState('Electronics and Computer Science');
 
-  // Text paste input
+  // Text paste input / PDF extracted raw text
   const [rawText, setRawText] = useState('');
 
   // Existing database cohort preview
@@ -81,12 +94,317 @@ export const RosterUploadScreen: React.FC = () => {
     fetchExistingCohort();
   }, []);
 
+  // ─── Table-Style Academic PDF Roster Parser ───
+  const parseAcademicTableRoster = (raw: string): ParsedGroup[] | null => {
+    const groupPattern = /\b([A-Z0-9]+-[0-9]+-Mini-[0-9]+|(?:Mini|Group|Team|Batch)[-_ ]+[0-9]+)\b/gi;
+    const matches = [...raw.matchAll(groupPattern)].filter(
+      (m) => !/^(group member|mini project|groups|group id)/i.test(m[0])
+    );
+
+    if (matches.length === 0) return null;
+
+    const result: ParsedGroup[] = [];
+    for (let i = 0; i < matches.length; i++) {
+      const curr = matches[i];
+      const next = matches[i + 1];
+      const rawChunk = raw.slice(curr.index, next ? next.index : undefined);
+      const groupId = curr[0];
+
+      let chunk = rawChunk.replace(curr[0], '');
+      chunk = chunk.replace(/--\s*\d+\s*of\s*\d+\s*--/gi, '');
+      chunk = chunk.replace(/T\.?E\.?.*extract.*Page\s*\d+/gi, '');
+      chunk = chunk.replace(/Page\s*\d+/gi, '');
+
+      let guide = 'Dr. Sheetal Patil';
+      const guideMatch = chunk.match(/(?:Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)[\s\n]+[A-Za-z]+(?:[\s\n]+[A-Za-z]+)*/i);
+      if (guideMatch) {
+        guide = guideMatch[0].replace(/[\s\n]+/g, ' ').trim();
+        chunk = chunk.replace(guideMatch[0], ' ');
+      }
+
+      let rawStudentNames: string[] = [];
+      if (chunk.includes('\t')) {
+        const parts = chunk
+          .split('\t')
+          .map((p) => p.replace(/[\s\n]+/g, ' ').trim())
+          .filter(Boolean);
+        for (const p of parts) {
+          const words = p.split(' ').filter(Boolean);
+          if (words.length >= 4) {
+            if (words.length === 5) {
+              rawStudentNames.push(words.slice(0, 3).join(' '));
+              rawStudentNames.push(words.slice(3).join(' '));
+            } else {
+              const mid = Math.floor(words.length / 2);
+              rawStudentNames.push(words.slice(0, mid).join(' '));
+              rawStudentNames.push(words.slice(mid).join(' '));
+            }
+          } else {
+            rawStudentNames.push(p);
+          }
+        }
+      } else {
+        const cleanChunk = chunk.replace(/[\s\n]+/g, ' ').trim();
+        const words = cleanChunk.split(' ').filter(Boolean);
+
+        if (words.length >= 6 && words.length % 3 === 0) {
+          for (let w = 0; w < words.length; w += 3) {
+            rawStudentNames.push(words.slice(w, w + 3).join(' '));
+          }
+        } else if (words.length === 8) {
+          for (let w = 0; w < words.length; w += 2) {
+            rawStudentNames.push(words.slice(w, w + 2).join(' '));
+          }
+        } else if (words.length > 0) {
+          const count = 4;
+          const per = Math.ceil(words.length / count);
+          for (let w = 0; w < words.length; w += per) {
+            rawStudentNames.push(words.slice(w, w + per).join(' '));
+          }
+        }
+      }
+
+      const resolvedGuide = nameToVitEmail(guide);
+      const students = rawStudentNames
+        .filter((s) => s.length >= 2)
+        .map((s, idx) => {
+          const resolved = nameToVitEmail(s);
+          return {
+            name: resolved.normalizedName || s,
+            role: (idx === 0 ? 'student_lead' : 'student_member') as 'student_lead' | 'student_member',
+            email: resolved.email || '',
+          };
+        });
+
+      if (students.length > 0) {
+        result.push({
+          groupId,
+          guideName: guide,
+          guideEmail: resolvedGuide.email || '',
+          students,
+        });
+      }
+    }
+
+    return result.length > 0 ? result : null;
+  };
+
+  // ─── Centralized Roster Text Parser (for Pasted text & PDF extracts) ───
+  const parseRosterText = (text: string): ParsedGroup[] => {
+    if (!text.trim()) return [];
+
+    // First attempt academic table parser (for multi-column PDF table extracts)
+    const tableGroups = parseAcademicTableRoster(text);
+    if (tableGroups && tableGroups.length > 0) {
+      return tableGroups;
+    }
+
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const groupMap = new Map<string, ParsedGroup>();
+
+    let currentGroup = 'Mini 1';
+    let currentGuide = 'Dr. Sheetal Patil';
+
+    for (const line of lines) {
+      // Skip obvious header titles or document boilerplate
+      if (
+        /^(sr\.?\s*no|roll\s*no|student\s*name|candidate\s*name|guide\s*name|faculty\s*name|signature|department\s*of|vishwakarma|page\s*\d+)/i.test(
+          line
+        )
+      ) {
+        continue;
+      }
+
+      // Check for Group / Guide headers: "Group: Mini 1 | Guide: Dr. Sheetal Patil"
+      if (
+        line.toLowerCase().includes('group') ||
+        line.toLowerCase().includes('guide') ||
+        line.toLowerCase().includes('batch')
+      ) {
+        const groupMatch = line.match(/(?:group|team|batch)\s*[:=-]?\s*([A-Za-z0-9\s_-]+?)(?:\||,|$)/i);
+        const guideMatch = line.match(/(?:guide|faculty|mentor|supervisor)\s*[:=-]?\s*([A-Za-z0-9\s._-]+?)(?:\||,|$)/i);
+
+        if (groupMatch && groupMatch[1].trim()) {
+          currentGroup = groupMatch[1].trim();
+        }
+        if (guideMatch && guideMatch[1].trim()) {
+          currentGuide = guideMatch[1].trim();
+        }
+        // If this line only was a group/guide header without student entries, proceed to next line
+        if (!line.includes(',') && !line.includes('\t') && !line.match(/\([0-9]+\)/)) {
+          continue;
+        }
+      }
+
+      // Check for comma, tab, or pipe separated values: Group, Guide, Student, Role, RollNo
+      if (line.includes('\t') || line.includes(',') || line.includes('|')) {
+        const sep = line.includes('\t') ? '\t' : line.includes(',') ? ',' : '|';
+        const parts = line.split(sep).map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          // If first column is serial number (e.g. "1"), shift it
+          if (/^\d+$/.test(parts[0]) && parts.length >= 3) {
+            parts.shift();
+          }
+
+          let gName = currentGroup;
+          let guide = currentGuide;
+          let sName = '';
+          let role = 'member';
+          let rollNo = '';
+
+          if (parts.length >= 4) {
+            gName = parts[0] || currentGroup;
+            guide = parts[1] || currentGuide;
+            sName = parts[2];
+            role = parts[3] || 'member';
+            if (parts[4]) rollNo = parts[4];
+          } else if (parts.length === 3) {
+            sName = parts[0];
+            guide = parts[1] || currentGuide;
+            role = parts[2] || 'member';
+          } else if (parts.length === 2) {
+            sName = parts[0];
+            role = parts[1];
+          }
+
+          if (sName && !/^(sr|roll|name|guide)/i.test(sName)) {
+            const rollMatch = (sName + ' ' + role).match(/\b([0-9]{2,}[A-Za-z0-9_-]{3,})\b/);
+            if (rollMatch) {
+              rollNo = rollMatch[1];
+              sName = sName.replace(rollMatch[1], '').trim();
+            }
+
+            if (!groupMap.has(gName)) {
+              const resolvedGuide = nameToVitEmail(guide);
+              groupMap.set(gName, {
+                groupId: gName,
+                guideName: guide,
+                guideEmail: resolvedGuide.email || '',
+                students: [],
+              });
+            }
+
+            const resolvedS = nameToVitEmail(sName);
+            const isLead = role.toLowerCase().includes('lead') || groupMap.get(gName)!.students.length === 0;
+            groupMap.get(gName)!.students.push({
+              name: resolvedS.normalizedName || sName,
+              role: isLead ? 'student_lead' : 'student_member',
+              email: resolvedS.email || '',
+              rollNo: rollNo || undefined,
+            });
+            continue;
+          }
+        }
+      }
+
+      // Plain student name line under current group
+      let cleanName = line.replace(/^[0-9]+[.)\s-]+/, '').trim();
+      if (!cleanName || cleanName.length < 3) continue;
+
+      let rollNo: string | undefined = undefined;
+      const rollMatch = cleanName.match(/\b([0-9]{2,}[A-Za-z0-9_-]{3,})\b/);
+      if (rollMatch) {
+        rollNo = rollMatch[1];
+        cleanName = cleanName.replace(rollMatch[1], '').trim();
+      }
+
+      const isLead =
+        cleanName.toLowerCase().includes('(lead)') ||
+        cleanName.toLowerCase().includes('- lead') ||
+        cleanName.toLowerCase().includes('[lead]');
+
+      const studentNameOnly = cleanName
+        .replace(/\((lead|member)\)/i, '')
+        .replace(/-\s*(lead|member)/i, '')
+        .replace(/\[(lead|member)\]/i, '')
+        .trim();
+
+      if (!studentNameOnly || studentNameOnly.length < 2) continue;
+
+      if (!groupMap.has(currentGroup)) {
+        const resolvedGuide = nameToVitEmail(currentGuide);
+        groupMap.set(currentGroup, {
+          groupId: currentGroup,
+          guideName: currentGuide,
+          guideEmail: resolvedGuide.email || '',
+          students: [],
+        });
+      }
+
+      const resolvedStudent = nameToVitEmail(studentNameOnly);
+      groupMap.get(currentGroup)!.students.push({
+        name: resolvedStudent.normalizedName || studentNameOnly,
+        role: isLead || groupMap.get(currentGroup)!.students.length === 0 ? 'student_lead' : 'student_member',
+        email: resolvedStudent.email || '',
+        rollNo,
+      });
+    }
+
+    return Array.from(groupMap.values());
+  };
+
+  // ─── PDF File Upload Handler (calls /api/v1/roster/parse-pdf) ───
+  const handlePdfUpload = async (file: File) => {
+    setIsProcessingPdf(true);
+    setErrorMessage(null);
+    setSuccessResult(null);
+    setPdfFileName(file.name);
+    setPdfFileSize(file.size);
+    setPdfExtractedStats(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/v1/roster/parse-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to extract text from PDF');
+      }
+
+      const extracted = data.text || '';
+      setRawText(extracted);
+
+      const parsed = parseRosterText(extracted);
+      if (parsed.length === 0) {
+        setErrorMessage(
+          `Extracted text from "${file.name}" (${extracted.length} chars), but could not detect structured student groups. Check the "Paste PDF / Notice Text" tab to review or format the extracted text.`
+        );
+        setActiveTab('paste');
+        return;
+      }
+
+      const totalStudents = parsed.reduce((sum, g) => sum + g.students.length, 0);
+      setPdfExtractedStats({
+        groups: parsed.length,
+        students: totalStudents,
+      });
+      setParsedGroups(parsed);
+    } catch (err: any) {
+      console.error('PDF extraction failed:', err);
+      setErrorMessage(err.message || 'Failed to process PDF document');
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  };
+
   // ─── Excel / CSV File Handler ───
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMessage(null);
     setSuccessResult(null);
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // If user dropped or selected a PDF in the generic file input
+    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+      setActiveTab('pdf');
+      handlePdfUpload(file);
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -177,81 +495,7 @@ export const RosterUploadScreen: React.FC = () => {
       return;
     }
 
-    const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
-    const groupMap = new Map<string, ParsedGroup>();
-
-    let currentGroup = 'Mini 1';
-    let currentGuide = 'Dr. Sheetal Patil';
-
-    for (const line of lines) {
-      // Check for Group / Guide headers: "Group: Mini 1 | Guide: Dr. Sheetal Patil"
-      if (line.toLowerCase().includes('group') || line.toLowerCase().includes('guide')) {
-        const groupMatch = line.match(/(?:group|team)\s*[:=-]?\s*([A-Za-z0-9\s_-]+?)(?:\||,|$)/i);
-        const guideMatch = line.match(/(?:guide|faculty|mentor)\s*[:=-]?\s*([A-Za-z0-9\s._-]+?)(?:\||,|$)/i);
-
-        if (groupMatch && groupMatch[1].trim()) {
-          currentGroup = groupMatch[1].trim();
-        }
-        if (guideMatch && guideMatch[1].trim()) {
-          currentGuide = guideMatch[1].trim();
-        }
-        continue;
-      }
-
-      // Check for comma or tab separated values: Group, Guide, Student, Role
-      if (line.includes('\t') || line.includes(',')) {
-        const parts = (line.includes('\t') ? line.split('\t') : line.split(',')).map((p) => p.trim());
-        if (parts.length >= 3) {
-          const gName = parts[0] || currentGroup;
-          const guide = parts[1] || currentGuide;
-          const sName = parts[2];
-          const role = parts[3] || 'member';
-
-          if (!groupMap.has(gName)) {
-            const resolvedGuide = nameToVitEmail(guide);
-            groupMap.set(gName, {
-              groupId: gName,
-              guideName: guide,
-              guideEmail: resolvedGuide.email || '',
-              students: [],
-            });
-          }
-
-          const resolvedS = nameToVitEmail(sName);
-          const isLead = role.toLowerCase().includes('lead') || groupMap.get(gName)!.students.length === 0;
-          groupMap.get(gName)!.students.push({
-            name: resolvedS.normalizedName || sName,
-            role: isLead ? 'student_lead' : 'student_member',
-            email: resolvedS.email || '',
-          });
-          continue;
-        }
-      }
-
-      // Plain student name under current group
-      const cleanName = line.replace(/^[0-9]+[.)\s-]+/, '').trim();
-      const isLead = cleanName.toLowerCase().includes('(lead)') || cleanName.toLowerCase().includes('- lead');
-      const studentNameOnly = cleanName.replace(/\((lead|member)\)/i, '').replace(/-\s*(lead|member)/i, '').trim();
-
-      if (!groupMap.has(currentGroup)) {
-        const resolvedGuide = nameToVitEmail(currentGuide);
-        groupMap.set(currentGroup, {
-          groupId: currentGroup,
-          guideName: currentGuide,
-          guideEmail: resolvedGuide.email || '',
-          students: [],
-        });
-      }
-
-      const resolvedStudent = nameToVitEmail(studentNameOnly);
-      groupMap.get(currentGroup)!.students.push({
-        name: resolvedStudent.normalizedName || studentNameOnly,
-        role: isLead || groupMap.get(currentGroup)!.students.length === 0 ? 'student_lead' : 'student_member',
-        email: resolvedStudent.email || '',
-      });
-    }
-
-    const parsed = Array.from(groupMap.values());
+    const parsed = parseRosterText(rawText);
     if (parsed.length === 0) {
       setErrorMessage('Could not extract groups or students from the pasted text.');
       return;
@@ -493,12 +737,12 @@ Parth karalkar`);
 
       {/* ─── Upload / Input Selection ─── */}
       <Card padding="md">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3 mb-4">
           <button
             onClick={() => setActiveTab('excel')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
               activeTab === 'excel'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -506,10 +750,24 @@ Parth karalkar`);
             <span>Upload Spreadsheet (.xlsx, .csv)</span>
           </button>
           <button
+            onClick={() => setActiveTab('pdf')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
+              activeTab === 'pdf'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <FileUp className="w-4 h-4" />
+            <span>Upload PDF Roster (.pdf)</span>
+            <span className="text-[10px] bg-rose-500/30 text-rose-100 font-semibold px-1.5 py-0.2 rounded">
+              Direct
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('paste')}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
               activeTab === 'paste'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -522,12 +780,26 @@ Parth karalkar`);
           <div>
             <div
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const droppedFile = e.dataTransfer.files?.[0];
+                if (droppedFile) {
+                  if (droppedFile.name.toLowerCase().endsWith('.pdf') || droppedFile.type === 'application/pdf') {
+                    setActiveTab('pdf');
+                    handlePdfUpload(droppedFile);
+                  } else {
+                    const syntheticEvent = { target: { files: [droppedFile] } } as any;
+                    handleFileUpload(syntheticEvent);
+                  }
+                }
+              }}
               className="border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/70 hover:bg-indigo-50/30 transition-all rounded-2xl p-8 text-center cursor-pointer group"
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".xlsx, .xls, .csv"
+                accept=".xlsx, .xls, .csv, .pdf"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -541,6 +813,136 @@ Parth karalkar`);
                 Supports Excel (.xlsx, .xls) and CSV (.csv). Columns: Group, Guide, Student Name, Role, Roll No.
               </p>
             </div>
+          </div>
+        ) : activeTab === 'pdf' ? (
+          <div className="space-y-4">
+            <div
+              onClick={() => !isProcessingPdf && pdfInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingPdf(true);
+              }}
+              onDragLeave={() => setIsDraggingPdf(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingPdf(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+                    setErrorMessage('Uploaded file must be a PDF document (.pdf)');
+                    return;
+                  }
+                  handlePdfUpload(file);
+                }
+              }}
+              className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer group ${
+                isDraggingPdf
+                  ? 'border-rose-500 bg-rose-50/60 scale-[1.01]'
+                  : 'border-rose-200 hover:border-rose-400 bg-rose-50/30 hover:bg-rose-50/50'
+              } ${isProcessingPdf ? 'opacity-70 pointer-events-none' : ''}`}
+            >
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePdfUpload(file);
+                }}
+                className="hidden"
+              />
+
+              <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-rose-200 flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition-transform">
+                {isProcessingPdf ? (
+                  <Loader2 className="w-7 h-7 text-rose-600 animate-spin" />
+                ) : (
+                  <FileUp className="w-7 h-7 text-rose-600" />
+                )}
+              </div>
+
+              {isProcessingPdf ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-slate-900">
+                    Extracting Student Names & Roster from PDF...
+                  </p>
+                  <p className="text-xs text-rose-700 font-medium">
+                    Parsing document streams and mapping student identities to VIT emails...
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-slate-900">
+                    Click to select or drag & drop student allocation PDF document
+                  </p>
+                  <p className="text-xs text-slate-500 max-w-lg mx-auto">
+                    Upload official departmental project allocation circular or student roster PDF (.pdf). The server extracts group IDs, student names, roles (Lead/Member), and assigns official <code className="font-mono bg-white px-1 py-0.5 rounded text-rose-700">@vit.edu.in</code> emails.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Extracted PDF file summary */}
+            {pdfFileName && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-rose-100 text-rose-700 rounded-lg shrink-0">
+                    <FileType className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-800">{pdfFileName}</span>
+                    {pdfFileSize && (
+                      <span className="text-slate-400 ml-2">
+                        ({(pdfFileSize / 1024).toFixed(1)} KB)
+                      </span>
+                    )}
+                    {pdfExtractedStats && (
+                      <div className="text-[11px] text-emerald-700 font-semibold mt-0.5">
+                        ✓ Extracted {pdfExtractedStats.students} students across {pdfExtractedStats.groups} groups
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Eye className="w-3.5 h-3.5" />}
+                    onClick={() => setShowRawExtracted(!showRawExtracted)}
+                  >
+                    {showRawExtracted ? 'Hide Extracted Text' : 'Inspect Raw Text'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => pdfInputRef.current?.click()}
+                  >
+                    Choose Different PDF
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Inspect raw extracted text accordion */}
+            {showRawExtracted && rawText && (
+              <div className="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
+                  <span>Raw Text Extracted from PDF Document:</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('paste')}
+                    className="text-indigo-400 hover:text-indigo-300 font-sans font-semibold text-xs"
+                  >
+                    Edit in Paste Editor →
+                  </button>
+                </div>
+                <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed text-[11px]">
+                  {rawText}
+                </pre>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

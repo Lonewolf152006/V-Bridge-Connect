@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth(request, 'student', 'coordinator', 'super_admin');
+    const user = await requireAuth(request, 'student', 'coordinator', 'super_admin', 'industry_partner');
     const { id } = await params;
     const body = await request.json();
 
@@ -19,7 +19,7 @@ export async function POST(
     }
 
     const result = await teamService.changeLead(id, body.newLeadUserId, user);
-    return Response.json({ data: result });
+    return Response.json({ success: true, data: result });
   } catch (error: any) {
     if (error instanceof AuthError) {
       return Response.json({ error: error.message }, { status: error.statusCode });
@@ -27,3 +27,5 @@ export async function POST(
     return Response.json({ error: error.message || 'Failed to change team lead' }, { status: 400 });
   }
 }
+
+export const PATCH = POST;

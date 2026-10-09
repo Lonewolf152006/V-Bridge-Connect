@@ -51,13 +51,6 @@ const NAV_ITEMS: SidebarItem[] = [
     badge: 'Apply',
   },
   {
-    label: 'Roster & Cohort Upload',
-    to: '/coordinator/roster-upload',
-    icon: FileSpreadsheet,
-    roles: ['COORDINATOR', 'SUPER_ADMIN'],
-    badge: 'Excel/PDF',
-  },
-  {
     label: 'Mentored Groups',
     to: '/coordinator/dashboard',
     icon: Users2,
@@ -80,19 +73,6 @@ const NAV_ITEMS: SidebarItem[] = [
     to: '/coordinator/grading',
     icon: ClipboardCheck,
     roles: ['COORDINATOR'],
-    badge: '1 pending',
-  },
-  {
-    label: 'Activity Builder',
-    to: '/coordinator/activities',
-    icon: FilePlus,
-    roles: ['COORDINATOR'],
-  },
-  {
-    label: 'Directory & Roles',
-    to: '/admin/people',
-    icon: ShieldCheck,
-    roles: ['COORDINATOR', 'SUPER_ADMIN'],
   },
   {
     label: 'Institutional Reports',

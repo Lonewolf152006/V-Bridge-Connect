@@ -284,44 +284,11 @@ export async function GET() {
             avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(mb.user.name)}`,
             status: 'active',
           })),
-          progressPercent: 50,
-          passedMilestonesCount: 1,
-          totalMilestonesCount: 3,
-          milestones: [
-            {
-              id: 'ms-001',
-              stageNumber: 1,
-              title: 'Milestone 1: Architectural Blueprint & System Specifications',
-              description: 'System block diagram and architecture specification.',
-              dueDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              weightage: 20,
-            },
-            {
-              id: 'ms-002',
-              stageNumber: 2,
-              title: 'Milestone 2: Working Prototype & Code Repository Demonstration',
-              description: 'GitHub repository with clean branch commits and passing unit tests.',
-              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-              weightage: 35,
-            },
-            {
-              id: 'ms-003',
-              stageNumber: 3,
-              title: 'Milestone 3: Final System Integration, Defense Viva & Accreditation',
-              description: 'Final production build deployment and comprehensive report.',
-              dueDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-              weightage: 45,
-            },
-          ],
-          upcomingMilestone: {
-            id: 'ms-002',
-            title: 'Milestone 2: Working Prototype & Code Repository Demonstration',
-            description:
-              'GitHub repository with clean branch commits and passing unit tests.',
-            stageNumber: 2,
-            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            weightage: 35,
-          },
+          progressPercent: 0,
+          passedMilestonesCount: 0,
+          totalMilestonesCount: 0,
+          milestones: [],
+          upcomingMilestone: null,
         });
       }
     }

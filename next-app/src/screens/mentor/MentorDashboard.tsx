@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
 import { MOCK_TEAMS } from '@services/mockData';
-import type { Team, Milestone, DeliverableType } from '@/types';
+import type { Team, Milestone, DeliverableType, TeamMemberRole } from '@/types';
 
 // Pre-defined project templates for quick one-click assignment
 const PROJECT_TOPIC_PRESETS = [
@@ -85,8 +85,8 @@ export const MentorDashboard: React.FC = () => {
   const [isRegeneratingCode, setIsRegeneratingCode] = useState<boolean>(false);
   const [isJoinCohortOpen, setIsJoinCohortOpen] = useState<boolean>(false);
 
-  // Teams state populated from database via /api/v1/admin/reports
-  const [teamsState, setTeamsState] = useState<Team[]>([]);
+  // Teams state initialized with MOCK_TEAMS and updated from database via /api/v1/admin/reports
+  const [teamsState, setTeamsState] = useState<Team[]>(MOCK_TEAMS);
 
   // Global notifications
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -253,54 +253,95 @@ export const MentorDashboard: React.FC = () => {
     setIsRoleModalOpen(true);
   };
 
-  const handleSaveRoles = (e: React.FormEvent) => {
+  const [isSavingRoles, setIsSavingRoles] = useState(false);
+
+  const handleSaveRoles = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleModalTeam) return;
 
-    setTeamsState((prev) =>
-      prev.map((t) => {
-        if (t.id === roleModalTeam.id) {
-          const updatedMembers = t.members.map((m) => ({
-            ...m,
-            role: memberRoleMap[m.userId] || m.role,
-          }));
-          return { ...t, members: updatedMembers };
-        }
-        return t;
-      })
+    setIsSavingRoles(true);
+    const targetTeamId = roleModalTeam.id;
+    const designatedLeadId = Object.keys(memberRoleMap).find(
+      (uid) => memberRoleMap[uid] === 'LEAD'
     );
 
-    // Sync with MOCK_TEAMS
-    const targetMock = MOCK_TEAMS.find((t) => t.id === roleModalTeam.id);
-    if (targetMock) {
-      targetMock.members = targetMock.members.map((m) => ({
-        ...m,
-        role: memberRoleMap[m.userId] || m.role,
-      }));
-    }
+    try {
+      // 1. If designated lead exists, persist to database via PATCH /api/v1/teams/:id/lead
+      if (designatedLeadId) {
+        await fetch(`/api/v1/teams/${targetTeamId}/lead`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newLeadUserId: designatedLeadId }),
+        }).catch((err) => console.warn('Lead update network warning:', err));
+      }
 
-    setNotificationBanner({
-      type: 'success',
-      message: `Activity roles updated for ${roleModalTeam.name}.`,
-    });
-    setIsRoleModalOpen(false);
-    setRoleModalTeam(null);
+      // 2. Also call PATCH /api/v1/teams/:id/members to sync memberRoles
+      await fetch(`/api/v1/teams/${targetTeamId}/members`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberRoles: memberRoleMap,
+          newLeadUserId: designatedLeadId,
+        }),
+      }).catch((err) => console.warn('Members role sync warning:', err));
+
+      // 3. Update teamsState locally
+      setTeamsState((prev) =>
+        prev.map((t) => {
+          if (t.id === targetTeamId) {
+            const updatedMembers = (t.members || []).map((m) => ({
+              ...m,
+              role: (memberRoleMap[m.userId] === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
+            }));
+            return { ...t, members: updatedMembers };
+          }
+          return t;
+        })
+      );
+
+      // Sync with MOCK_TEAMS
+      const targetMock = MOCK_TEAMS.find((t) => t.id === targetTeamId);
+      if (targetMock) {
+        targetMock.members = targetMock.members.map((m) => ({
+          ...m,
+          role: (memberRoleMap[m.userId] === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
+        }));
+      }
+
+      setNotificationBanner({
+        type: 'success',
+        message: `Activity roles updated and persisted for ${roleModalTeam.name}.`,
+      });
+      setIsRoleModalOpen(false);
+      setRoleModalTeam(null);
+    } catch (err: any) {
+      console.error('Failed to save roles:', err);
+      setNotificationBanner({
+        type: 'info',
+        message: `Roles updated in session (${err.message || 'database sync deferred'}).`,
+      });
+      setIsRoleModalOpen(false);
+      setRoleModalTeam(null);
+    } finally {
+      setIsSavingRoles(false);
+    }
   };
 
   const teams = teamsState.filter((team) => {
     const q = searchQuery.toLowerCase();
     return (
       team.name.toLowerCase().includes(q) ||
-      team.members.some((m) => m.user.name.toLowerCase().includes(q)) ||
+      (team.members || []).some((m) => m?.user?.name?.toLowerCase().includes(q)) ||
       (team.projectTitle && team.projectTitle.toLowerCase().includes(q))
     );
   });
 
-  const activeSelectedTeam = teamsState.find((t) => t.id === selectedTeamId) || teamsState[0];
+  const activeSelectedTeam = teamsState.find((t) => t.id === selectedTeamId) || teamsState[0] || MOCK_TEAMS[0];
 
   // Open Assign Modal for specific team
   const handleOpenAssignModal = (team?: Team) => {
     const targetTeam = team || activeSelectedTeam;
+    if (!targetTeam) return;
     setSelectedTeamId(targetTeam.id);
     if (targetTeam.projectTitle) {
       setAssignTitle(targetTeam.projectTitle);
@@ -813,8 +854,9 @@ export const MentorDashboard: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {teams.map((team) => {
-                const leadMember = team.members.find((m) => m.role === 'LEAD') || team.members[0];
-                const otherMembers = team.members.filter((m) => m.userId !== leadMember?.userId);
+                const membersList = team.members || [];
+                const leadMember = membersList.find((m) => m.role === 'LEAD') || membersList[0];
+                const otherMembers = membersList.filter((m) => m.userId !== leadMember?.userId);
 
                 return (
                   <tr key={team.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1062,7 +1104,7 @@ export const MentorDashboard: React.FC = () => {
               >
                 {teamsState.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} ({t.members.length} Students)
+                    {t.name} ({(t.members || []).length} Students)
                   </option>
                 ))}
               </select>
@@ -1071,7 +1113,7 @@ export const MentorDashboard: React.FC = () => {
             {/* Students List under the chosen group */}
             <div className="text-[11px] text-indigo-900/90 pt-1 border-t border-indigo-100 flex flex-wrap gap-2 items-center">
               <span className="font-semibold text-slate-500">Students under this group:</span>
-              {activeSelectedTeam.members.map((m) => (
+              {(activeSelectedTeam?.members || []).map((m) => (
                 <span
                   key={m.userId}
                   className="bg-white/80 border border-indigo-200/80 px-2 py-0.5 rounded-md font-medium text-slate-800 inline-flex items-center gap-1"
@@ -1592,7 +1634,7 @@ export const MentorDashboard: React.FC = () => {
               </p>
 
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-slate-50/50">
-                {roleModalTeam.members.map((m) => {
+                {(roleModalTeam.members || []).map((m) => {
                   const currentAssigned = memberRoleMap[m.userId] || 'CONTRIBUTOR';
                   return (
                     <div

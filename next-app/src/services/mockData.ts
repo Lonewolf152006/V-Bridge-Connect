@@ -127,47 +127,7 @@ export const MOCK_ACTIVITIES: Activity[] = [
   },
 ];
 
-export const MOCK_MILESTONES: Milestone[] = [
-  {
-    id: 'ms-001',
-    activityId: 'activity-001',
-    title: 'Milestone 1: Problem Formulation & Architecture Specification',
-    description: 'System block diagram, technical stack selection, and preliminary architecture blueprint commit.',
-    stageNumber: 1,
-    status: 'ACCEPTED',
-    dueDate: '2026-10-15T23:59:00Z',
-    weightage: 20,
-    deliverableType: 'PDF',
-    createdAt: '2026-08-15T00:00:00Z',
-    updatedAt: '2026-09-15T00:00:00Z',
-  },
-  {
-    id: 'ms-002',
-    activityId: 'activity-001',
-    title: 'Milestone 2: Working Prototype & Code Repository Demonstration',
-    description: 'GitHub repository with clean branch commits, passing unit tests, and 5-minute video presentation.',
-    stageNumber: 2,
-    status: 'OPEN',
-    dueDate: '2026-11-01T23:59:00Z',
-    weightage: 35,
-    deliverableType: 'GITHUB_URL',
-    createdAt: '2026-09-01T00:00:00Z',
-    updatedAt: '2026-10-01T00:00:00Z',
-  },
-  {
-    id: 'ms-003',
-    activityId: 'activity-001',
-    title: 'Milestone 3: Final System Integration, Defense Viva & Accreditation',
-    description: 'Final production build deployment, comprehensive technical report PDF, and faculty viva examination.',
-    stageNumber: 3,
-    status: 'NOT_STARTED',
-    dueDate: '2026-11-30T23:59:00Z',
-    weightage: 45,
-    deliverableType: 'PDF',
-    createdAt: '2026-09-01T00:00:00Z',
-    updatedAt: '2026-10-01T00:00:00Z',
-  },
-];
+export const MOCK_MILESTONES: Milestone[] = [];
 
 export const MOCK_TEAMS: Team[] = [
   {
