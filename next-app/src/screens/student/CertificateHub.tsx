@@ -36,7 +36,7 @@ import { formatDate } from '@lib/utils';
 
 export const CertificateHub: React.FC = () => {
   const { currentUser } = useAppStore();
-  const isFaculty = currentUser.role === 'COORDINATOR' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'INDUSTRY_PARTNER';
+  const isFaculty = currentUser?.role?.toUpperCase() !== 'STUDENT';
 
   // Live certificates from database
   const [certs, setCerts] = useState<Certificate[]>([]);
@@ -247,15 +247,17 @@ export const CertificateHub: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="primary"
-              size="md"
-              leftIcon={<Upload className="w-4 h-4" />}
-              onClick={scrollToUpload}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 font-semibold"
-            >
-              Upload Certificate Directly
-            </Button>
+            {!isFaculty && (
+              <Button
+                variant="primary"
+                size="md"
+                leftIcon={<Upload className="w-4 h-4" />}
+                onClick={scrollToUpload}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 font-semibold"
+              >
+                Upload Certificate Directly
+              </Button>
+            )}
 
             <Button
               variant="outline"
@@ -277,7 +279,9 @@ export const CertificateHub: React.FC = () => {
             </div>
             <div>
               <div className="text-xl font-bold text-white">{certs.length}</div>
-              <div className="text-xs text-slate-400">Total Portfolio Items</div>
+              <div className="text-xs text-slate-400">
+                {isFaculty ? 'Student Credentials' : 'Total Portfolio Items'}
+              </div>
             </div>
           </div>
 
@@ -297,14 +301,17 @@ export const CertificateHub: React.FC = () => {
             </div>
             <div>
               <div className="text-xl font-bold text-white">{externalCount}</div>
-              <div className="text-xs text-slate-400">Directly Uploaded</div>
+              <div className="text-xs text-slate-400">
+                {isFaculty ? 'Student Uploaded' : 'Directly Uploaded'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── DIRECT UPLOAD SECTION (Inline on the Page) ─── */}
-      <div ref={uploadSectionRef} className="space-y-4">
+      {/* ─── DIRECT UPLOAD SECTION (For Students Only) ─── */}
+      {!isFaculty && (
+        <div ref={uploadSectionRef} className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
@@ -511,6 +518,7 @@ export const CertificateHub: React.FC = () => {
           </Card>
         )}
       </div>
+      )}
 
       {/* ─── COMBINED CERTIFICATES GALLERY SECTION ─── */}
       <div className="space-y-4">
