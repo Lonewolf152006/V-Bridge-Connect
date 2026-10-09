@@ -22,8 +22,13 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
-  // 1. Allow root and public paths without auth redirection
-  const publicPaths = ['/', '/login', '/api', '/_next', '/favicon.ico'];
+  // 1. Root path '/' always redirects to login page
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/login', req.nextUrl.origin));
+  }
+
+  // Allow public paths without auth redirection
+  const publicPaths = ['/login', '/api', '/_next', '/favicon.ico'];
   if (publicPaths.some((p) => pathname === p || pathname.startsWith(p))) {
     return NextResponse.next();
   }

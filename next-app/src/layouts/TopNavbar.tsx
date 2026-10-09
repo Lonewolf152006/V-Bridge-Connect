@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { roleLabel, timeAgo, cn } from '@/lib/utils';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
+import { signOut as nextAuthSignOut } from 'next-auth/react';
 import type { UserRole } from '@/types';
 
 export interface TopNavbarProps {
@@ -48,9 +49,10 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
       document.cookie = 'vbridge_demo_user=; path=/; max-age=0; SameSite=Lax';
+      await nextAuthSignOut({ redirect: false });
     } catch {}
     router.push('/login');
   };

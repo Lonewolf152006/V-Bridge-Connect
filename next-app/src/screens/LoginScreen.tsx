@@ -58,25 +58,12 @@ export const LoginScreen: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<LoginTab>('INSTITUTIONAL');
 
-  // Form states — initialized with default
-  const [email, setEmail] = useState('harshad.panchal@vit.edu.in');
-  const [password, setPassword] = useState('Test1234!');
+  // Form states — initialized empty (no autofill)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [facultyCode, setFacultyCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const setPreset = (
-    tab: LoginTab,
-    presetEmail: string,
-    presetPass: string,
-    presetCode: string = ''
-  ) => {
-    setActiveTab(tab);
-    setEmail(presetEmail);
-    setPassword(presetPass);
-    setFacultyCode(presetCode);
-    setErrorMessage(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,83 +177,6 @@ export const LoginScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* ── Quick Demo Login Presets ── */}
-        <div className="bg-slate-800/80 backdrop-blur-md rounded-2xl p-3 border border-slate-700/80 shadow-lg text-slate-200">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-2 px-1">
-            <span className="flex items-center gap-1.5 text-indigo-300 font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              Quick Fill Demo Accounts:
-            </span>
-            <span className="text-[10px] text-slate-400">Click to autofill</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setPreset('SUPER_ADMIN', 'admin@vbridge.com', 'admin123')}
-              className={`p-2 rounded-xl text-left font-medium transition-all border ${
-                activeTab === 'SUPER_ADMIN'
-                  ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
-                  : 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1">
-                <span>👑</span> Superadmin
-              </div>
-              <div className="text-[9px] opacity-80 font-mono truncate">admin@vbridge.com</div>
-              <div className="text-[9px] opacity-90 font-mono">pwd: admin123</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPreset('INDUSTRY_PARTNER', 'expert@industry.com', 'expert123', 'FAC-SPATIL-2026')}
-              className={`p-2 rounded-xl text-left font-medium transition-all border ${
-                activeTab === 'INDUSTRY_PARTNER'
-                  ? 'bg-amber-600 text-white border-amber-400 shadow-sm'
-                  : 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1">
-                <span>🏢</span> Industry Expert
-              </div>
-              <div className="text-[9px] opacity-80 font-mono truncate">expert@industry.com</div>
-              <div className="text-[9px] opacity-90 font-mono">code: FAC-SPATIL-2026</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPreset('INSTITUTIONAL', 'sheetal.patil@vit.edu.in', 'Test1234!')}
-              className={`p-2 rounded-xl text-left font-medium transition-all border ${
-                activeTab === 'INSTITUTIONAL' && email.includes('sheetal')
-                  ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
-                  : 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1">
-                <span>👩‍🏫</span> Faculty Mentor
-              </div>
-              <div className="text-[9px] opacity-80 font-mono truncate">sheetal.patil@vit...</div>
-              <div className="text-[9px] opacity-90 font-mono">pwd: Test1234!</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPreset('INSTITUTIONAL', 'harshad.panchal@vit.edu.in', 'Test1234!')}
-              className={`p-2 rounded-xl text-left font-medium transition-all border ${
-                activeTab === 'INSTITUTIONAL' && !email.includes('sheetal')
-                  ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
-                  : 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1">
-                <span>🎓</span> Student Lead
-              </div>
-              <div className="text-[9px] opacity-80 font-mono truncate">harshad.panchal@...</div>
-              <div className="text-[9px] opacity-90 font-mono">pwd: Test1234!</div>
-            </button>
-          </div>
-        </div>
-
         {/* Auth Card */}
         <Card padding="lg" className="border-slate-800 bg-white shadow-2xl">
           {errorMessage && (
@@ -279,7 +189,10 @@ export const LoginScreen: React.FC = () => {
           <div className="flex p-1 bg-slate-100 rounded-xl mb-6 gap-1 text-xs font-semibold">
             <button
               type="button"
-              onClick={() => setPreset('INSTITUTIONAL', 'harshad.panchal@vit.edu.in', 'Test1234!')}
+              onClick={() => {
+                setActiveTab('INSTITUTIONAL');
+                setErrorMessage(null);
+              }}
               className={`flex-1 py-2 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'INSTITUTIONAL'
                   ? 'bg-white text-indigo-700 shadow-xs'
@@ -291,7 +204,10 @@ export const LoginScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setPreset('SUPER_ADMIN', 'admin@vbridge.com', 'admin123')}
+              onClick={() => {
+                setActiveTab('SUPER_ADMIN');
+                setErrorMessage(null);
+              }}
               className={`flex-1 py-2 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'SUPER_ADMIN'
                   ? 'bg-white text-purple-700 shadow-xs'
@@ -303,7 +219,10 @@ export const LoginScreen: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setPreset('INDUSTRY_PARTNER', 'expert@industry.com', 'expert123')}
+              onClick={() => {
+                setActiveTab('INDUSTRY_PARTNER');
+                setErrorMessage(null);
+              }}
               className={`flex-1 py-2 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'INDUSTRY_PARTNER'
                   ? 'bg-white text-amber-700 shadow-xs'
@@ -341,6 +260,7 @@ export const LoginScreen: React.FC = () => {
                   <input
                     type="email"
                     required
+                    autoComplete="off"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="firstname.lastname@vit.edu.in"
@@ -358,6 +278,7 @@ export const LoginScreen: React.FC = () => {
                   <input
                     type="password"
                     required
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -405,6 +326,7 @@ export const LoginScreen: React.FC = () => {
                   <input
                     type="email"
                     required
+                    autoComplete="off"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@vbridge.com"
@@ -422,6 +344,7 @@ export const LoginScreen: React.FC = () => {
                   <input
                     type="password"
                     required
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -499,6 +422,7 @@ export const LoginScreen: React.FC = () => {
                     <input
                       type="email"
                       required
+                      autoComplete="off"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="expert@industry.com"
@@ -516,6 +440,7 @@ export const LoginScreen: React.FC = () => {
                     <input
                       type="password"
                       required
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
