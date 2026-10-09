@@ -17,9 +17,9 @@ export default function HomePage() {
     if (currentUser.role === 'STUDENT') {
       router.replace('/dashboard');
     } else if (currentUser.role === 'COORDINATOR') {
-      router.replace('/coordinator/activities');
+      router.replace('/coordinator/dashboard');
     } else if (currentUser.role === 'SUPER_ADMIN') {
-      router.replace('/admin/people');
+      router.replace('/admin/reports');
     } else {
       router.replace('/dashboard');
     }

@@ -51,9 +51,13 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // If neither session nor demo cookie is present, redirect to login
+      // If neither session nor demo cookie is present, redirect to login on current domain
       if (!session?.user && !demoCookie?.value) {
-        return false;
+        const loginUrl = new URL('/login', request.nextUrl);
+        if (pathname !== '/' && pathname !== '/login') {
+          loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+        }
+        return Response.redirect(loginUrl);
       }
 
       // Role-based path protection
@@ -75,6 +79,20 @@ export const authConfig: NextAuthConfig = {
       }
 
       return true;
+    },
+
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return url;
+      try {
+        const parsed = new URL(url);
+        if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+          return `${parsed.pathname}${parsed.search}`;
+        }
+        if (parsed.origin === baseUrl) return url;
+      } catch {
+        return url;
+      }
+      return url;
     },
   },
 
