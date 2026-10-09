@@ -236,30 +236,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (simpleAccount) {
           const isSimplePass = true; // In dev/demo environment, allow simple accounts unconditionally
           if (isSimplePass) {
-            // Non-blocking background sync to DB
-            prisma.user
-              .findUnique({ where: { email } })
-              .then(async (existing) => {
-                if (!existing) {
-                  const passwordHash = await bcrypt.hash(password, 10);
-                  await prisma.user.create({
-                    data: {
-                      id: simpleAccount.id,
-                      email,
-                      name: simpleAccount.name,
-                      role: simpleAccount.role,
-                      passwordHash,
-                      institutionalId: simpleAccount.institutionalId,
-                    },
-                  });
-                }
-              })
-              .catch((err) => console.warn('[Authorize] Non-blocking DB sync:', err));
+            // Find or sync DB user with proper UUID
+            let effectiveId = simpleAccount.id;
+            try {
+              let existing = await prisma.user.findFirst({
+                where: { email: { equals: email, mode: 'insensitive' } },
+              });
+              if (!existing) {
+                const passwordHash = await bcrypt.hash(password, 10);
+                existing = await prisma.user.create({
+                  data: {
+                    id: simpleAccount.id,
+                    email,
+                    name: simpleAccount.name,
+                    role: simpleAccount.role,
+                    passwordHash,
+                    institutionalId: simpleAccount.institutionalId,
+                  },
+                });
+              }
+              if (existing) {
+                effectiveId = existing.id;
+              }
+            } catch (err) {
+              console.warn('[Authorize] DB sync warning:', err);
+            }
 
-            // Non-blocking roster auto connect
+            // Non-blocking roster auto connect with valid DB UUID
             rosterService
               .autoConnectUserOnLogin({
-                id: simpleAccount.id,
+                id: effectiveId,
                 email,
                 name: simpleAccount.name,
                 role: simpleAccount.role,
@@ -267,7 +273,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               .catch((err) => console.warn('[RosterAutoConnect] Non-blocking roster sync:', err));
 
             return {
-              id: simpleAccount.id,
+              id: effectiveId,
               email,
               name: simpleAccount.name,
               role: simpleAccount.role,

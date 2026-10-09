@@ -22,10 +22,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find team in database by ID or name
+    // Find team in database by ID, exact name, slug, or number
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+    const normalizedName = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
+    const digitMatch = teamId.match(/\d+/)?.[0];
+
     const teamInDb = await prisma.team.findFirst({
       where: {
-        OR: [{ id: teamId }, { name: teamId }],
+        OR: [
+          ...(isUuid ? [{ id: teamId }] : []),
+          { name: { equals: teamId, mode: 'insensitive' as const } },
+          { name: { equals: normalizedName, mode: 'insensitive' as const } },
+          ...(digitMatch ? [{ name: { contains: digitMatch, mode: 'insensitive' as const } }] : []),
+        ],
       },
     });
 

@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       prisma.team.findMany({
         include: {
           mentor: { select: { id: true, name: true, email: true } },
+          industryMentor: { select: { id: true, name: true, email: true } },
           activity: { select: { id: true, title: true } },
           members: {
             where: { removedAt: null },
@@ -182,6 +183,7 @@ export async function GET(req: NextRequest) {
         totalStudents: totalStudentsCount,
         totalTeams: totalTeamsCount,
       },
+      teams: teamsWithMembers,
       auditLogs: finalAuditLogs.map(log => ({
         id: log.id,
         action: log.action,

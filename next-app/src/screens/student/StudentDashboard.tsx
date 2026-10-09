@@ -43,7 +43,17 @@ interface StudentDashboardData {
     activityType: string;
     department: string;
     riskStatus: string;
+    projectTitle?: string | null;
+    projectDescription?: string | null;
+    projectDomain?: string | null;
+    projectSource?: string | null;
+    projectStatus?: string | null;
     mentor: {
+      id: string;
+      name: string;
+      email: string;
+    } | null;
+    industryMentor?: {
       id: string;
       name: string;
       email: string;
@@ -346,14 +356,28 @@ export const StudentDashboard: React.FC = () => {
                   </div>
 
                   <div>
-                    <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-                      {team.name}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                        {team.name}
+                      </span>
+                      {team.projectTitle && (
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                          ✓ {team.projectSource === 'industry_offered' ? 'Industry Topic' : 'Faculty Assigned'}
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-base font-bold text-slate-900 font-display hover:text-indigo-600 transition-colors mt-0.5">
-                      <Link href={`/projects/${team.id}`}>{team.activityTitle}</Link>
+                      <Link href={`/projects/${team.id}`}>{team.projectTitle || team.activityTitle}</Link>
                     </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                      {team.activityDescription}
+                    {team.projectDomain && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded border border-indigo-200/80">
+                          Domain: {team.projectDomain}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-1.5">
+                      {team.projectDescription || team.activityDescription}
                     </p>
                   </div>
 
@@ -384,11 +408,18 @@ export const StudentDashboard: React.FC = () => {
                         <Users className="w-3.5 h-3.5 text-slate-400" />
                         <span>{team.members.length} members:</span>
                       </div>
-                      <div className="text-slate-500">
-                        Guide:{' '}
-                        <span className="font-semibold text-slate-800">
-                          {team.mentor?.name || 'Dr. Sheetal Patil'}
-                        </span>
+                      <div className="text-slate-500 text-right">
+                        <div>
+                          Guide:{' '}
+                          <span className="font-semibold text-slate-800">
+                            {team.mentor?.name || 'Dr. Sheetal Patil'}
+                          </span>
+                        </div>
+                        {team.industryMentor?.name && (
+                          <div className="text-[11px] text-amber-800 font-medium">
+                            Co-Mentor: {team.industryMentor.name}
+                          </div>
+                        )}
                       </div>
                     </div>
 

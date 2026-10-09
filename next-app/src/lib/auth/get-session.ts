@@ -45,6 +45,7 @@ export async function getRequiredSessionWithRole(
 }
 
 import { cookies } from 'next/headers';
+import prisma from '@/lib/db/prisma';
 
 /**
  * Get the current session or null (for optional auth).
@@ -59,7 +60,28 @@ export async function getOptionalSession(): Promise<SessionUser | null> {
     const demoCookie = cookieStore.get('vbridge_demo_user');
     if (demoCookie?.value) {
       const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
-      const cleanEmail = (parsed.email || 'student@vit.edu.in').toLowerCase();
+      const cleanEmail = (parsed.email || 'student@vit.edu.in').toLowerCase().trim();
+
+      // Look up existing user in PostgreSQL database to return their real UUID
+      try {
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        });
+        if (dbUser) {
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            role: dbUser.role as UserRole,
+            departmentId: dbUser.departmentId,
+            institutionalId: dbUser.institutionalId,
+            avatarUrl: dbUser.avatarUrl,
+          };
+        }
+      } catch (dbErr) {
+        console.warn('[getOptionalSession] DB lookup warning:', dbErr);
+      }
+
       const parts = cleanEmail.split('@');
       const cleanName = (parts[0] || 'User')
         .split('.')

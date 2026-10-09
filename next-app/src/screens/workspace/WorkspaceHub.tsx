@@ -157,8 +157,12 @@ export const WorkspaceHub: React.FC = () => {
               id: t.id,
               name: t.name,
               activityId: t.activity?.id || 'act-1',
-              projectTitle: t.projectTitle || `${t.name} Capstone Project`,
-              projectDescription: t.description || 'Capstone Project',
+              projectTitle: t.projectTitle || undefined,
+              projectDescription: t.projectDescription || t.description || undefined,
+              projectDomain: t.projectDomain || undefined,
+              projectSource: t.projectSource || undefined,
+              projectStatus: t.projectStatus || undefined,
+              industryMentorName: t.industryMentor?.name || undefined,
               riskLevel: t.riskStatus === 'at_risk' ? 'AT_RISK' : 'ON_TRACK',
               mentorId: t.mentor?.id || 'user-sheetal-patil',
               mentor: t.mentor
@@ -190,6 +194,14 @@ export const WorkspaceHub: React.FC = () => {
               createdAt: new Date().toISOString(),
             }));
             setTeamsState(mapped);
+            // Update selectedTeamId to use the real UUID
+            const slugNorm = (s: string) => s.replace(/^team-/i, '').replace(/-/g, ' ').trim().toLowerCase();
+            const match = mapped.find((t: any) => t.id === teamId) ||
+              mapped.find((t: any) => teamId && t.name.toLowerCase() === slugNorm(teamId)) ||
+              mapped.find((t: any) => t.id === selectedTeamId) ||
+              mapped.find((t: any) => selectedTeamId && t.name.toLowerCase() === slugNorm(selectedTeamId)) ||
+              mapped[0];
+            if (match) setSelectedTeamId(match.id);
           }
         }
 
@@ -221,9 +233,13 @@ export const WorkspaceHub: React.FC = () => {
     fetchLiveContext();
   }, []);
 
+  // Match team by UUID, exact name, or slug (e.g. 'team-mini-6' → 'mini 6')
+  const normalizeSlug = (s: string) => s.replace(/^team-/i, '').replace(/-/g, ' ').trim().toLowerCase();
   const currentTeam =
     teamsState.find((t) => t.id === selectedTeamId) ||
     teamsState.find((t) => t.id === teamId) ||
+    teamsState.find((t) => teamId && t.name.toLowerCase() === normalizeSlug(teamId)) ||
+    teamsState.find((t) => selectedTeamId && t.name.toLowerCase() === normalizeSlug(selectedTeamId)) ||
     teamsState[0] ||
     DEFAULT_TEAMS[0];
 

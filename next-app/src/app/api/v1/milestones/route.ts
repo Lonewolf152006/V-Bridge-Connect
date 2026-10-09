@@ -11,12 +11,39 @@ export async function GET(request: NextRequest) {
     const activityId = searchParams.get('activityId');
     const teamId = searchParams.get('teamId');
 
+    let effectiveTeamId: string | null = null;
+    let resolvedActivityId = activityId;
+
+    if (teamId && teamId !== 'all') {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+      const normalized = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
+      const digits = teamId.match(/\d+/)?.[0];
+      const foundTeam = await prisma.team.findFirst({
+        where: {
+          OR: [
+            ...(isUuid ? [{ id: teamId }] : []),
+            { name: { equals: teamId, mode: 'insensitive' as const } },
+            { name: { equals: normalized, mode: 'insensitive' as const } },
+            ...(digits ? [{ name: { contains: digits, mode: 'insensitive' as const } }] : []),
+          ],
+        },
+      });
+      if (foundTeam) {
+        effectiveTeamId = foundTeam.id;
+        if (!resolvedActivityId) resolvedActivityId = foundTeam.activityId;
+      } else if (isUuid) {
+        effectiveTeamId = teamId;
+      }
+    }
+
     const where: any = {};
-    if (activityId) where.activityId = activityId;
-    if (teamId) where.teamId = teamId;
+    if (resolvedActivityId) where.activityId = resolvedActivityId;
+    if (effectiveTeamId) {
+      where.OR = [{ teamId: null }, { teamId: effectiveTeamId }];
+    }
 
     // If neither is provided, find the active Semester 5 Mini Project activity
-    if (!activityId && !teamId) {
+    if (!resolvedActivityId && !effectiveTeamId) {
       const activeAct = await prisma.activity.findFirst({
         where: { title: { contains: 'Semester 5 Mini Project' } },
         select: { id: true },
@@ -102,10 +129,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let effectiveTeamId: string | null = null;
+    if (teamId && teamId !== 'all') {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+      const normalized = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
+      const digits = teamId.match(/\d+/)?.[0];
+      const foundTeam = await prisma.team.findFirst({
+        where: {
+          OR: [
+            ...(isUuid ? [{ id: teamId }] : []),
+            { name: { equals: teamId, mode: 'insensitive' as const } },
+            { name: { equals: normalized, mode: 'insensitive' as const } },
+            ...(digits ? [{ name: { contains: digits, mode: 'insensitive' as const } }] : []),
+          ],
+        },
+      });
+      if (foundTeam) {
+        effectiveTeamId = foundTeam.id;
+        if (!activityId) activityId = foundTeam.activityId;
+      } else if (isUuid) {
+        effectiveTeamId = teamId;
+      }
+    }
+
     const milestone = await prisma.milestone.create({
       data: {
         activityId,
-        teamId: teamId || null,
+        teamId: effectiveTeamId,
         title: title.trim(),
         description: description?.trim() || '',
         stageNumber: parseInt(stageNumber, 10),
