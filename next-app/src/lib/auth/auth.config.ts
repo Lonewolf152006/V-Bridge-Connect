@@ -19,8 +19,8 @@ export const authConfig: NextAuthConfig = {
       const { pathname } = request.nextUrl;
 
       // Public routes: always allow
-      const publicPaths = ['/login', '/api/auth', '/api/verify'];
-      if (publicPaths.some((p) => pathname.startsWith(p))) {
+      const publicPaths = ['/', '/login', '/api/auth', '/api/verify'];
+      if (pathname === '/' || publicPaths.some((p) => pathname.startsWith(p))) {
         return true;
       }
 

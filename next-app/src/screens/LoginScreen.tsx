@@ -96,7 +96,7 @@ export const LoginScreen: React.FC = () => {
 
     if (cleanEmail.includes('admin') || cleanEmail.includes('dean') || cleanEmail.includes('super')) {
       targetRole = 'SUPER_ADMIN';
-      targetRoute = '/admin/people';
+      targetRoute = '/admin/reports';
     } else if (cleanEmail.includes('sheetal') || cleanEmail.includes('coord') || cleanEmail.includes('mentor') || cleanEmail.includes('faculty') || cleanEmail.includes('prof')) {
       targetRole = 'COORDINATOR';
       targetRoute = '/mentor/dashboard';
