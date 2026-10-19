@@ -27,8 +27,21 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/login', req.nextUrl.origin));
   }
 
-  // Allow public paths without auth redirection
-  const publicPaths = ['/login', '/api', '/_next', '/favicon.ico'];
+  // Allow public paths without auth redirection (including PWA manifest, service worker, icons, and TWA assetlinks)
+  const publicPaths = [
+    '/login',
+    '/offline',
+    '/sw.js',
+    '/.well-known',
+    '/api',
+    '/_next',
+    '/favicon.ico',
+    '/manifest.webmanifest',
+    '/manifest.json',
+    '/icon-192x192.png',
+    '/icon-512x512.png',
+    '/icon-maskable-512x512.png',
+  ];
   if (publicPaths.some((p) => pathname === p || pathname.startsWith(p))) {
     return NextResponse.next();
   }

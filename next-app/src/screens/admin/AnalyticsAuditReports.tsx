@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import { Review2EvaluationAuditTable } from '@components/admin/Review2EvaluationAuditTable';
 
 interface AuditLogItem {
   id: string;
@@ -203,6 +204,9 @@ export const AnalyticsAuditReports: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* ─── Official TE Mini-Project Review-2 Panel Evaluation Hub (Audit & Excel Export) ─── */}
+      <Review2EvaluationAuditTable />
 
       {/* ─── Audit Trail Inspection (Dynamic FR-130) ─── */}
       <Card padding="none" className="overflow-hidden">

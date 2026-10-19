@@ -8,5 +8,9 @@ import type { ReactNode } from 'react';
  * Makes useSession() available throughout the component tree.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  return <NextAuthSessionProvider>{children}</NextAuthSessionProvider>;
+  return (
+    <NextAuthSessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
+      {children}
+    </NextAuthSessionProvider>
+  );
 }

@@ -20,7 +20,7 @@ export function SessionSync() {
         email: u.email || '',
         role: roleStr,
         department: u.departmentName || 'Electronics and Computer Science',
-        avatarUrl: u.avatarUrl || u.image || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(u.name || 'User')}`,
+        avatarUrl: u.avatarUrl || u.image || '',
         institutionalId: u.institutionalId || undefined,
         isOnline: true,
       });

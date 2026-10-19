@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
 import { TopNavbar } from './TopNavbar';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
-
-import { usePathname } from 'next/navigation';
+import { Home, Folder, MessageSquare, Award } from 'lucide-react';
 
 export interface DesktopShellProps {
   children: React.ReactNode;
@@ -14,7 +15,38 @@ export interface DesktopShellProps {
 
 export const DesktopShell: React.FC<DesktopShellProps> = ({ children }) => {
   const viewportMode = useAppStore((state) => state.viewportMode);
+  const activeWorkspace = useAppStore((state) => state.activeWorkspace);
   const pathname = usePathname();
+
+  const teamId = activeWorkspace?.teamId;
+  const projectsHref = teamId ? `/projects/${teamId}` : '/opportunities';
+
+  const bottomNavItems = [
+    {
+      name: 'Home',
+      href: '/dashboard',
+      icon: Home,
+      isActive: pathname === '/dashboard',
+    },
+    {
+      name: 'Projects',
+      href: projectsHref,
+      icon: Folder,
+      isActive: pathname.startsWith('/projects') || pathname === '/opportunities',
+    },
+    {
+      name: 'Messages',
+      href: '/messages',
+      icon: MessageSquare,
+      isActive: pathname.startsWith('/messages'),
+    },
+    {
+      name: 'Certificates',
+      href: '/certificates',
+      icon: Award,
+      isActive: pathname.startsWith('/certificates'),
+    },
+  ];
 
   if (pathname === '/login') {
     if (viewportMode === 'mobile') {
@@ -109,13 +141,37 @@ export const DesktopShell: React.FC<DesktopShellProps> = ({ children }) => {
       <TopNavbar />
 
       <div className="flex-1 flex max-w-[1920px] w-full mx-auto">
-        <Sidebar />
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+        <div className="hidden md:flex">
+          <Sidebar />
+        </div>
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
           {children}
         </main>
       </div>
 
-      <MobileBottomNav />
+      {/* Mobile-Only Bottom Tab Navigation (Fixed PWA Bar with Safe Area Support) */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="fixed bottom-0 left-0 right-0 z-50 flex h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] items-center justify-around border-t border-slate-800 bg-slate-900 md:hidden"
+      >
+        {bottomNavItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full text-[11px] font-medium transition-colors ${
+                item.isActive
+                  ? 'text-indigo-500 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };

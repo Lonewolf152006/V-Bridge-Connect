@@ -27,6 +27,8 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 body {
@@ -34,6 +36,29 @@ body {
   background-color: #F8FAFC;
   color: #0F172A;
   line-height: 1.5;
+  max-width: 100vw;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ─── Safe Area & Mobile Keyboard Viewport Utilities ─── */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 16px));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+input, textarea, select {
+  scroll-margin-top: 5rem;
+  scroll-margin-bottom: 5rem;
+}
+
+@media (max-width: 768px) {
+  button, a[role="button"], input[type="button"], input[type="submit"] {
+    min-height: 44px;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {

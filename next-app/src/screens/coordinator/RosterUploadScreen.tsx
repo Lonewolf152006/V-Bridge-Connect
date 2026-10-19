@@ -23,7 +23,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
-import * as XLSX from 'xlsx';
 import { nameToVitEmail } from '@/lib/modules/roster/vit-resolver';
 
 interface ParsedStudent {
@@ -407,8 +406,9 @@ export const RosterUploadScreen: React.FC = () => {
     }
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import('xlsx');
         const bstr = evt.target?.result;
         const workbook = XLSX.read(bstr, { type: 'binary' });
         const firstSheetName = workbook.SheetNames[0];
@@ -559,7 +559,8 @@ Parth karalkar`);
   };
 
   // Download sample templates
-  const downloadSampleTemplate = (format: 'xlsx' | 'csv') => {
+  const downloadSampleTemplate = async (format: 'xlsx' | 'csv') => {
+    const XLSX = await import('xlsx');
     const sampleData = [
       {
         Group: 'Mini 1',

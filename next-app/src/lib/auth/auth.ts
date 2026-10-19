@@ -280,9 +280,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               departmentId: null,
               departmentName: simpleAccount.dept,
               institutionalId: simpleAccount.institutionalId || 'INST-2026',
-              avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-                simpleAccount.name
-              )}`,
+              avatarUrl: '',
             };
           }
         }
@@ -377,7 +375,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             departmentId: null,
             departmentName: 'Electronics and Computer Science',
             institutionalId: 'VIT-2026',
-            avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+            avatarUrl: '',
           };
         }
 

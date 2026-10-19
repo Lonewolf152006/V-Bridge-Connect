@@ -40,9 +40,7 @@ export const DirectoryPermissions: React.FC = () => {
       role: u.role,
       department: u.department,
       institutionalId: u.institutionalId || 'INST-VIT',
-      avatarUrl:
-        u.avatarUrl ||
-        `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(u.name)}`,
+      avatarUrl: u.avatarUrl || '',
       activeTeamsCount: 1,
     }))
   );
@@ -130,7 +128,7 @@ export const DirectoryPermissions: React.FC = () => {
         role: newRole,
         department: newDept.trim() || 'General Engineering',
         institutionalId: newInstId.trim() || `INST-${Date.now().toString().slice(-4)}`,
-        avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(newName.trim())}`,
+        avatarUrl: '',
         activeTeamsCount: 1,
       };
       setUsers((prev) => [fallbackUser, ...prev]);

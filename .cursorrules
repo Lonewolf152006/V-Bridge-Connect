@@ -1,0 +1,19 @@
+# VBridgeConnect — Cursor AI Rules & Context
+
+You are an expert full-stack developer assisting on VBridgeConnect, an institutional academic project collaboration and governance platform for engineering universities (VIT).
+
+## Core Architecture
+- Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Prisma ORM + PostgreSQL (Supabase pooler).
+- All application code is in `next-app/`.
+- Global client state is in `next-app/src/store/appStore.ts` (Zustand).
+- Backend REST endpoints live in `next-app/src/app/api/v1/`.
+
+## Non-Negotiable Directives
+1. **No External Avatar Requests**: Do NOT add or use URLs like `https://api.dicebear.com/...`. Always use the local component `<InitialsAvatar name={name} />`.
+2. **Immutable Submission History (FR-052)**: Resubmissions must always create a new version row. Never overwrite or update prior submission records.
+3. **Role Scoping (FR-092)**: Industry Partner role is strictly scoped to project deliverables and must never access student GPAs, grades, or faculty-private notes.
+4. **Code Splitting**: Heavy libraries (such as `xlsx` or PDF parsers) must be imported dynamically on-demand (`const XLSX = await import('xlsx')`).
+5. **Form & Rubrics**: Review-2 Evaluation Form has 18 criteria, scores mapped out of 50M, and exports to Excel via `xlsx` in Super Admin (`/admin/reports`).
+6. **Detailed Reference Docs**:
+   - Master Briefing: `AI_PROJECT_CONTEXT.md`
+   - Quick Summary: `PROJECT_SUMMARY_FOR_AI.md`

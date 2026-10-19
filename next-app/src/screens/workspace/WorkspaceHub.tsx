@@ -38,6 +38,20 @@ import {
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
 import { formatDateTime, getMilestoneBadge, timeAgo } from '@lib/utils';
 import type { Team, Milestone, DeliverableType } from '@/types';
+import dynamic from 'next/dynamic';
+import { LiveMeetingRoom } from '@/components/meeting/LiveMeetingRoom';
+
+const EvaluationFormReview2 = dynamic(
+  () => import('@components/evaluation/EvaluationFormReview2').then((m) => m.EvaluationFormReview2),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
+        Loading Review-2 Evaluation Module...
+      </div>
+    ),
+  }
+);
 
 const DEFAULT_TEAMS: Team[] = [
   {
@@ -63,7 +77,7 @@ const DEFAULT_TEAMS: Team[] = [
           email: 'vedant.nikumbh@vit.edu.in',
           role: 'STUDENT',
           department: 'Electronics and Computer Science',
-          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Vedant',
+          avatarUrl: '',
           isOnline: true,
         },
       },
@@ -93,7 +107,7 @@ const DEFAULT_TEAMS: Team[] = [
           email: 'harshavardhan.more@vit.edu.in',
           role: 'STUDENT',
           department: 'Electronics and Computer Science',
-          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Harshavardhan',
+          avatarUrl: '',
           isOnline: true,
         },
       },
@@ -123,7 +137,7 @@ const DEFAULT_TEAMS: Team[] = [
           email: 'manasi.pawar@vit.edu.in',
           role: 'STUDENT',
           department: 'Electronics and Computer Science',
-          avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Manasi',
+          avatarUrl: '',
           isOnline: true,
         },
       },
@@ -149,14 +163,19 @@ export const WorkspaceHub: React.FC = () => {
   useEffect(() => {
     async function fetchLiveContext() {
       try {
-        const teamRes = await fetch('/api/v1/admin/reports');
+        const [teamRes, msRes] = await Promise.all([
+          fetch('/api/v1/mentor/assign-project'),
+          fetch('/api/v1/milestones'),
+        ]);
+
         if (teamRes.ok) {
-          const data = await teamRes.json();
-          if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
-            const mapped: Team[] = data.teams.map((t: any) => ({
+          const resJson = await teamRes.json();
+          const rawTeams = resJson.data || resJson.teams || [];
+          if (Array.isArray(rawTeams) && rawTeams.length > 0) {
+            const mapped: Team[] = rawTeams.map((t: any) => ({
               id: t.id,
               name: t.name,
-              activityId: t.activity?.id || 'act-1',
+              activityId: t.activity?.id || t.activityId || 'act-1',
               projectTitle: t.projectTitle || undefined,
               projectDescription: t.projectDescription || t.description || undefined,
               projectDomain: t.projectDomain || undefined,
@@ -172,7 +191,7 @@ export const WorkspaceHub: React.FC = () => {
                     email: t.mentor.email,
                     role: 'COORDINATOR',
                     department: 'Electronics and Computer Science',
-                    avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(t.mentor.name)}`,
+                    avatarUrl: '',
                     isOnline: true,
                   }
                 : undefined,
@@ -192,7 +211,7 @@ export const WorkspaceHub: React.FC = () => {
                       email: m.user?.email || 'student@vit.edu.in',
                       role: 'STUDENT',
                       department: 'Electronics and Computer Science',
-                      avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                      avatarUrl: '',
                       institutionalId: m.user?.institutionalId || '24108B',
                       isOnline: true,
                     },
@@ -214,7 +233,6 @@ export const WorkspaceHub: React.FC = () => {
           }
         }
 
-        const msRes = await fetch('/api/v1/milestones');
         if (msRes.ok) {
           const msData = await msRes.json();
           if (msData.data && Array.isArray(msData.data) && msData.data.length > 0) {
@@ -401,6 +419,8 @@ export const WorkspaceHub: React.FC = () => {
   const [uploadLinkValue, setUploadLinkValue] = useState<string>('');
   const [isUploadingLink, setIsUploadingLink] = useState(false);
   const [meetActionSuccess, setMeetActionSuccess] = useState<string | null>(null);
+  const [isLiveRoomOpen, setIsLiveRoomOpen] = useState(false);
+  const [activeLiveRoomName, setActiveLiveRoomName] = useState('');
 
   const fetchMeetings = async (teamIdToFetch: string) => {
     try {
@@ -489,11 +509,12 @@ export const WorkspaceHub: React.FC = () => {
     }
   };
 
-  // Tabs definition (Repository, Slack Discussion, and Fake Rubrics removed per user requirements)
+  // Tabs definition
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'milestones', label: 'Milestones & Deliverables' },
     { id: 'meetings', label: 'Mentor Sync & Meet' },
+    { id: 'review2', label: 'TE Review-2 Form' },
   ];
 
   return (
@@ -661,6 +682,15 @@ export const WorkspaceHub: React.FC = () => {
                   className="border-emerald-200 hover:bg-emerald-50 text-emerald-800 font-semibold"
                 >
                   + Milestone
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<ClipboardCheck className="w-4 h-4 text-indigo-600" />}
+                  onClick={() => setActiveTab('review2')}
+                  className={activeTab === 'review2' ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-bold' : 'border-indigo-200 hover:bg-indigo-50 text-indigo-800 font-semibold'}
+                >
+                  Review-2 Form
                 </Button>
               </div>
             ) : (
@@ -1020,14 +1050,28 @@ export const WorkspaceHub: React.FC = () => {
                 </p>
               </div>
 
-              <Button
-                variant="primary"
-                onClick={() => setIsPlanMeetingModalOpen(true)}
-                leftIcon={<Plus className="w-4 h-4" />}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                + Plan a Meeting
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  id="btn-launch-live-room"
+                  variant="outline"
+                  onClick={() => {
+                    setActiveLiveRoomName(`${currentTeam.name} Sync Room`);
+                    setIsLiveRoomOpen(true);
+                  }}
+                  leftIcon={<Video className="w-4 h-4 text-emerald-600" />}
+                  className="border-emerald-200 text-emerald-800 hover:bg-emerald-50 font-semibold"
+                >
+                  Join Live Room
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setIsPlanMeetingModalOpen(true)}
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  + Plan a Meeting
+                </Button>
+              </div>
             </div>
 
             {meetActionSuccess && (
@@ -1194,6 +1238,14 @@ export const WorkspaceHub: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* ─── TAB 4: REVIEW-2 EVALUATION FORM ─── */}
+      {activeTab === 'review2' && (
+        <EvaluationFormReview2
+          currentTeam={currentTeam}
+          allTeams={teamsState}
+        />
       )}
 
       {/* ─── ADD MILESTONE MODAL (Faculty Mentor & Industry Expert) ─── */}
@@ -1494,6 +1546,24 @@ export const WorkspaceHub: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* ─── LiveKit / WebRTC Meeting Room Modal ─── */}
+      {isLiveRoomOpen && (
+        <Modal
+          isOpen={isLiveRoomOpen}
+          onClose={() => setIsLiveRoomOpen(false)}
+          title={`Live Session — ${activeLiveRoomName}`}
+          maxWidth="4xl"
+        >
+          <div className="h-[520px] max-h-[75vh] w-full">
+            <LiveMeetingRoom
+              roomName={activeLiveRoomName}
+              userName={currentUser.name}
+              onLeave={() => setIsLiveRoomOpen(false)}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

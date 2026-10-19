@@ -121,32 +121,28 @@ export const LoginScreen: React.FC = () => {
       role: targetRole,
     });
 
-    // 3. Authenticate with NextAuth in background
+    // 3. Authenticate with NextAuth in background (non-blocking)
     try {
-      await nextAuthSignIn('credentials', {
+      nextAuthSignIn('credentials', {
         email: cleanEmail,
         password: password || 'Test1234!',
         redirect: false,
-      });
+      }).catch((e) => console.warn('NextAuth background sign-in warning:', e));
 
       // If industry partner provided a faculty invite code, auto-link to faculty cohort
       if (targetRole === 'INDUSTRY_PARTNER' && facultyCode.trim()) {
-        try {
-          await fetch('/api/v1/mentor/join-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: facultyCode.trim() }),
-          });
-        } catch (joinErr) {
-          console.warn('[Login] Auto-join with faculty code error:', joinErr);
-        }
+        fetch('/api/v1/mentor/join-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: facultyCode.trim() }),
+        }).catch((joinErr) => console.warn('[Login] Auto-join with faculty code error:', joinErr));
       }
     } catch (authErr) {
       console.warn('NextAuth background sign-in warning:', authErr);
     }
 
     // 4. Smoothly route user to their role dashboard
-    router.push(targetRoute);
+    window.location.href = targetRoute;
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {

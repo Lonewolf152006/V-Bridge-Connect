@@ -138,6 +138,7 @@ model User {
   revokedCertificates Certificate[]    @relation("CertificateRevoker")
   sentMessages        Message[]
   notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
   auditEvents         AuditEvent[]     @relation("AuditActor")
   conversationParticipations ConversationParticipant[]
 
@@ -481,6 +482,21 @@ model Notification {
   user        User @relation(fields: [userId], references: [id])
 
   @@map("notifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
 }
 
 // ─── Audit Module ──────────────────────────────────────────────────────────

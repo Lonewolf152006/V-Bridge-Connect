@@ -9,6 +9,7 @@ import { roleLabel, timeAgo, cn } from '@/lib/utils';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
 import { signOut as nextAuthSignOut } from 'next-auth/react';
 import type { UserRole } from '@/types';
+import { PushNotificationToggle } from '@/components/pwa/PushNotificationToggle';
 
 export interface TopNavbarProps {
   isSimulation?: boolean;
@@ -59,31 +60,31 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
 
   return (
     <header className={cn(
-      "sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-all",
+      "sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-2.5 sm:px-6 flex items-center justify-between gap-1.5 sm:gap-4 transition-all w-full max-w-full",
       isSimulation ? "h-14 px-3" : "h-16"
     )}>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {!isSimulation && (
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden transition-colors shrink-0"
             aria-label="Toggle Navigation"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
 
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-sm shadow-indigo-300 group-hover:scale-105 transition-transform">
+        <Link href="/" className="flex items-center gap-1.5 sm:gap-2.5 group min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-base sm:text-lg shadow-sm shadow-indigo-300 group-hover:scale-105 transition-transform shrink-0">
             V
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-slate-900 tracking-tight text-base font-display">
+              <span className="font-extrabold text-slate-900 tracking-tight text-sm sm:text-base font-display truncate">
                 VBridge<span className="text-indigo-600">Connect</span>
               </span>
               <span className={cn(
-                "text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200",
+                "text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 hidden sm:inline-block shrink-0",
                 isSimulation && "hidden"
               )}>
                 Institutional
@@ -112,7 +113,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
         </div>
       )}
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {!isSimulation && (
           <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
             <Building2 className="w-3.5 h-3.5 text-slate-400" />
@@ -157,6 +158,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
                     <span>Mark all read</span>
                   </button>
                 )}
+              </div>
+
+              {/* Push Notification Opt-in (User Action Only) */}
+              <div className="py-2 px-1 border-b border-slate-100">
+                <PushNotificationToggle />
               </div>
 
               <div className="mt-2 divide-y divide-slate-50 max-h-80 overflow-y-auto">

@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { Home, Compass, FolderGit2, MessageSquare, Award, FileSpreadsheet } from 'lucide-react';
+import { Home, Folder, MessageSquare, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface MobileBottomNavProps {
@@ -12,102 +12,64 @@ export interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ isSimulation = false }) => {
-  const currentUser = useAppStore((state) => state.currentUser);
   const activeWorkspace = useAppStore((state) => state.activeWorkspace);
   const pathname = usePathname();
 
-  const getHomePath = () => {
-    switch (currentUser.role) {
-      case 'COORDINATOR':
-        return '/coordinator/dashboard';
-      case 'SUPER_ADMIN':
-        return '/admin/people';
-      default:
-        return '/dashboard';
-    }
-  };
+  const teamId = activeWorkspace?.teamId;
+  const projectsHref = teamId ? `/projects/${teamId}` : '/opportunities';
 
-  const homePath = getHomePath();
-  const workspacePath = activeWorkspace?.teamId
-    ? `/projects/${activeWorkspace.teamId}`
-    : '/projects/team-mini-6';
+  const bottomNavItems = [
+    {
+      name: 'Home',
+      href: '/dashboard',
+      icon: Home,
+      isActive: pathname === '/dashboard',
+    },
+    {
+      name: 'Projects',
+      href: projectsHref,
+      icon: Folder,
+      isActive: pathname.startsWith('/projects') || pathname === '/opportunities',
+    },
+    {
+      name: 'Messages',
+      href: '/messages',
+      icon: MessageSquare,
+      isActive: pathname.startsWith('/messages'),
+    },
+    {
+      name: 'Certificates',
+      href: '/certificates',
+      icon: Award,
+      isActive: pathname.startsWith('/certificates'),
+    },
+  ];
 
   return (
     <nav
+      aria-label="Mobile Navigation"
       className={cn(
-        'bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3 flex items-center justify-around select-none transition-all',
-        isSimulation
-          ? 'absolute bottom-0 left-0 right-0 z-40 shadow-lg pt-1.5 pb-4'
-          : 'lg:hidden fixed bottom-0 left-0 right-0 z-40 py-2'
+        'border-t border-slate-800 bg-slate-900 select-none transition-all flex h-16 items-center justify-around z-50',
+        isSimulation ? 'absolute bottom-0 left-0 right-0' : 'fixed bottom-0 left-0 right-0 md:hidden'
       )}
     >
-      <Link
-        href={homePath}
-        className={cn(
-          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-          pathname === homePath ? 'text-indigo-600 font-bold' : 'text-slate-500'
-        )}
-      >
-        <Home className="w-5 h-5" />
-        <span>Home</span>
-      </Link>
-
-      {currentUser.role === 'COORDINATOR' || currentUser.role === 'SUPER_ADMIN' ? (
-        <Link
-          href="/coordinator/roster-upload"
-          className={cn(
-            'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-            pathname === '/coordinator/roster-upload' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-          )}
-        >
-          <FileSpreadsheet className="w-5 h-5" />
-          <span>Roster</span>
-        </Link>
-      ) : (
-        <Link
-          href="/dashboard"
-          className={cn(
-            'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-            pathname === '/dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-          )}
-        >
-          <FolderGit2 className="w-5 h-5" />
-          <span>Projects</span>
-        </Link>
-      )}
-
-      <Link
-        href={workspacePath}
-        className={cn(
-          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-          pathname.startsWith('/projects') ? 'text-indigo-600 font-bold' : 'text-slate-500'
-        )}
-      >
-        <FolderGit2 className="w-5 h-5" />
-        <span>Workspace</span>
-      </Link>
-
-      <Link
-        href="/messages"
-        className={cn(
-          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-          pathname === '/messages' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-        )}
-      >
-        <MessageSquare className="w-5 h-5" />
-        <span>Chat</span>
-      </Link>
-
-      <Link
-        href="/certificates"
-        className={cn(
-          'flex flex-col items-center gap-1 text-[10px] font-medium p-1 transition-colors',
-          pathname === '/certificates' ? 'text-indigo-600 font-bold' : 'text-slate-500'
-        )}
-      >
-        <Award className="w-5 h-5" />
-        <span>Certificates</span>
-      </Link>
+      {bottomNavItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 h-full text-[11px] font-medium transition-colors ${
+              item.isActive
+                ? 'text-indigo-500 font-semibold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Icon className="w-5 h-5" />
+            <span>{item.name}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 };

@@ -24,9 +24,7 @@ export async function GET(req: NextRequest) {
       role: u.role.toUpperCase(),
       department: u.department?.name || 'Electronics and Computer Science',
       institutionalId: u.institutionalId || u.facultyCode || 'N/A',
-      avatarUrl:
-        u.avatarUrl ||
-        `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(u.name)}`,
+      avatarUrl: u.avatarUrl || '',
       createdAt: u.createdAt.toISOString(),
       activeTeamsCount: u._count.teamMemberships + u._count.guidedTeams,
     }));
@@ -133,7 +131,7 @@ export async function POST(req: NextRequest) {
         role: newUser.role.toUpperCase(),
         department: newUser.department?.name || deptName,
         institutionalId: newUser.institutionalId || newUser.facultyCode || 'N/A',
-        avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(newUser.name)}`,
+        avatarUrl: newUser.avatarUrl || '',
       },
     });
   } catch (error: any) {
@@ -218,9 +216,7 @@ export async function PATCH(req: NextRequest) {
         role: updated.role.toUpperCase(),
         department: updated.department?.name || 'Electronics and Computer Science',
         institutionalId: updated.institutionalId || updated.facultyCode || 'N/A',
-        avatarUrl:
-          updated.avatarUrl ||
-          `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(updated.name)}`,
+        avatarUrl: updated.avatarUrl || '',
       },
     });
   } catch (error: any) {

@@ -63,7 +63,7 @@ export async function GET(request: Request) {
             email: c.student.email,
             role: 'STUDENT',
             department: 'Electronics and Computer Science',
-            avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(c.student.name)}`,
+            avatarUrl: '',
             institutionalId: c.student.institutionalId || undefined,
             isOnline: true,
           }

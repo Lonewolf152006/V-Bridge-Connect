@@ -94,7 +94,7 @@ export async function getOptionalSession(): Promise<SessionUser | null> {
         role: (parsed.role || 'student').toLowerCase() as UserRole,
         departmentId: null,
         institutionalId: 'INST-2026',
-        avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`,
+        avatarUrl: '',
       };
     }
   } catch {}

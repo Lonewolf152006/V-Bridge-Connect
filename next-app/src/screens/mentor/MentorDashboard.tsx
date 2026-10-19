@@ -153,25 +153,23 @@ export const MentorDashboard: React.FC = () => {
   useEffect(() => {
     async function loadLiveTeams() {
       try {
-        const res = await fetch('/api/v1/admin/reports');
+        const res = await fetch('/api/v1/mentor/assign-project');
         if (res.ok) {
-          const data = await res.json();
-          if (data.teams && Array.isArray(data.teams) && data.teams.length > 0) {
-            const mapped: Team[] = data.teams.map((t: any) => ({
+          const resJson = await res.json();
+          const rawTeams = resJson.data || resJson.teams || [];
+          if (Array.isArray(rawTeams) && rawTeams.length > 0) {
+            const mapped: Team[] = rawTeams.map((t: any) => ({
               id: t.id,
               name: t.name,
-              activityId: t.activity?.id || 'act-1',
-              activityTitle: t.activity?.title || 'Semester 5 Mini Project',
+              activityId: t.activity?.id || t.activityId || 'act-1',
               projectTitle: t.projectTitle || undefined,
               projectDescription: t.projectDescription || t.description || undefined,
               projectDomain: t.projectDomain || undefined,
               projectSource: t.projectSource || undefined,
               projectStatus: t.projectStatus || undefined,
               industryMentorName: t.industryMentor?.name || undefined,
-              description: t.projectDescription || t.description || 'Autonomous Capstone Mini-Project under Faculty Mentorship',
-              riskStatus: t.riskStatus || 'ON_TRACK',
+              riskLevel: t.riskStatus === 'at_risk' ? 'AT_RISK' : 'ON_TRACK',
               mentorId: t.mentor?.id || 'user-sheetal-patil',
-              mentorName: t.mentor?.name || 'Dr. Sheetal Patil',
               mentor: t.mentor
                 ? {
                     id: t.mentor.id,
@@ -179,7 +177,7 @@ export const MentorDashboard: React.FC = () => {
                     email: t.mentor.email,
                     role: 'COORDINATOR',
                     department: 'Electronics and Computer Science',
-                    avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(t.mentor.name)}`,
+                    avatarUrl: '',
                     isOnline: true,
                   }
                 : undefined,
@@ -191,7 +189,7 @@ export const MentorDashboard: React.FC = () => {
                   seen.add(uid);
                   acc.push({
                     userId: uid,
-                    role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'MEMBER',
+                    role: (m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
                     joinedAt: new Date().toISOString(),
                     user: {
                       id: uid,
@@ -199,7 +197,7 @@ export const MentorDashboard: React.FC = () => {
                       email: m.user?.email || 'student@vit.edu.in',
                       role: 'STUDENT',
                       department: 'Electronics and Computer Science',
-                      avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                      avatarUrl: '',
                       institutionalId: m.user?.institutionalId || '24108B',
                       isOnline: true,
                     },
@@ -207,7 +205,7 @@ export const MentorDashboard: React.FC = () => {
                   return acc;
                 }, []);
               })(),
-              milestones: [],
+              createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString(),
             }));
             setTeamsState(mapped);
             if (mapped.length > 0) {

@@ -19,6 +19,7 @@ import {
   FileText,
   AlertCircle,
 } from 'lucide-react';
+import { InitialsAvatar } from '@components/common/InitialsAvatar';
 import type { MessageChannel } from '@/types';
 
 interface FacultyAnnouncement {
@@ -73,7 +74,7 @@ export const MessagingScreen: React.FC = () => {
       id: 'm1',
       senderName: 'Dr. Sheetal Patil',
       senderRole: 'Lead Faculty Coordinator',
-      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=SheetalPatil',
+      avatar: '',
       title: 'Milestone 2 Evaluation Schedule & Guidelines',
       text: 'Good afternoon students. The Milestone 2 reviews for all Mini Project groups will be conducted this Thursday starting at 10:00 AM. Please make sure your GitHub repositories are updated with commit histories and that your demonstration slides follow the attached template.',
       timestamp: 'Today at 09:30 AM',
@@ -85,7 +86,7 @@ export const MessagingScreen: React.FC = () => {
       id: 'm2',
       senderName: 'Dr. Sheetal Patil',
       senderRole: 'Lead Faculty Coordinator',
-      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=SheetalPatil',
+      avatar: '',
       text: 'Important reminder for Group Leads: Please ensure all group members have claimed their roster profiles. Direct messaging between individual students has been disabled to maintain academic integrity and centralized records.',
       timestamp: 'Today at 11:15 AM',
       pinned: false,
@@ -94,7 +95,7 @@ export const MessagingScreen: React.FC = () => {
       id: 'm3',
       senderName: 'Prof. Principal (Dean Academics)',
       senderRole: 'Academic Directorate',
-      avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rita',
+      avatar: '',
       text: 'Accreditation audits for the semester projects will review ledger hashes directly. Ensure that all external certificates are logged in your portfolio under the institutional guidelines.',
       timestamp: 'Yesterday at 04:00 PM',
       pinned: true,
@@ -111,7 +112,7 @@ export const MessagingScreen: React.FC = () => {
         id: Date.now().toString(),
         senderName: currentUser.name || 'Faculty Guide',
         senderRole: currentUser.role === 'SUPER_ADMIN' ? 'Dean Academics' : 'Faculty Guide / Coordinator',
-        avatar: currentUser.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Faculty',
+        avatar: currentUser.avatarUrl || '',
         text: inputText.trim(),
         timestamp: 'Just now',
         pinned: false,
@@ -223,10 +224,10 @@ export const MessagingScreen: React.FC = () => {
         <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4">
           {messages.map((m) => (
             <div key={m.id} className="flex items-start gap-3.5 text-xs sm:text-sm">
-              <img
-                src={m.avatar}
-                alt={m.senderName}
-                className="w-9 h-9 rounded-full bg-slate-200 flex-shrink-0 ring-2 ring-indigo-100"
+              <InitialsAvatar
+                name={m.senderName}
+                size="md"
+                className="flex-shrink-0 ring-2 ring-indigo-100"
               />
               <div className="space-y-1.5 max-w-2xl flex-1">
                 <div className="flex items-center gap-2 flex-wrap">

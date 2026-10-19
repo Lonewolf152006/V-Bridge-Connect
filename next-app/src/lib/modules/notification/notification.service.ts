@@ -1,9 +1,6 @@
-// VBridgeConnect — Notification Service
-// Subscribes to specific domain events and creates in-app notifications.
-// architecture.md §3: Subscribes to domain events, fans out to in-app and email channels.
-
 import prisma from '@/lib/db/prisma';
 import eventBus, { type DomainEvent } from '@/lib/events/bus';
+import { sendWebPushToUser, isPushAllowedByAntiSpamRule } from '@/lib/push/webpush';
 
 export const notificationService = {
   /**
@@ -20,12 +17,13 @@ export const notificationService = {
       });
     });
 
-    // Application decision
+    // Application decision (Push Allowed: Decision)
     eventBus.subscribe('application.selected', async (event) => {
       if (event.metadata?.applicantId) {
+        const userId = event.metadata.applicantId as string;
         await prisma.notification.create({
           data: {
-            userId: event.metadata.applicantId as string,
+            userId,
             title: 'Application Accepted',
             body: 'Your application has been selected!',
             severity: 'info',
@@ -33,14 +31,25 @@ export const notificationService = {
             entityId: event.entityId,
           },
         });
+
+        // Web push (PRD Anti-Spam Rule: Decision)
+        if (isPushAllowedByAntiSpamRule(event.type, event.metadata)) {
+          await sendWebPushToUser(userId, {
+            title: 'Application Accepted',
+            body: 'Congratulations! Your capstone application has been accepted.',
+            url: `/projects/${event.entityId}`,
+            category: 'decision',
+          });
+        }
       }
     });
 
     eventBus.subscribe('application.rejected', async (event) => {
       if (event.metadata?.applicantId) {
+        const userId = event.metadata.applicantId as string;
         await prisma.notification.create({
           data: {
-            userId: event.metadata.applicantId as string,
+            userId,
             title: 'Application Update',
             body: 'Your application status has been updated.',
             severity: 'info',
@@ -48,15 +57,25 @@ export const notificationService = {
             entityId: event.entityId,
           },
         });
+
+        // Web push (PRD Anti-Spam Rule: Decision)
+        if (isPushAllowedByAntiSpamRule(event.type, event.metadata)) {
+          await sendWebPushToUser(userId, {
+            title: 'Application Update',
+            body: 'Your capstone project application status has been updated.',
+            url: '/dashboard',
+            category: 'decision',
+          });
+        }
       }
     });
 
-    // Milestone overdue
+    // Milestone overdue (Push Allowed: Deadline)
     eventBus.subscribe('milestone.overdue', async (event) => {
       await createNotification({
         event,
         title: 'Milestone Overdue',
-        body: `A milestone is now overdue.`,
+        body: `A project milestone is now overdue. Please review immediately.`,
         severity: 'urgent',
       });
     });
@@ -74,9 +93,10 @@ export const notificationService = {
     // Certificate issued
     eventBus.subscribe('certificate.issued', async (event) => {
       if (event.metadata?.studentId) {
+        const userId = event.metadata.studentId as string;
         await prisma.notification.create({
           data: {
-            userId: event.metadata.studentId as string,
+            userId,
             title: 'Certificate Issued',
             body: 'A new certificate has been issued for you. View and download it now.',
             severity: 'info',
@@ -84,10 +104,20 @@ export const notificationService = {
             entityId: event.entityId,
           },
         });
+
+        // Web Push (PRD Anti-Spam: Decision / Outcome)
+        if (isPushAllowedByAntiSpamRule(event.type, event.metadata)) {
+          await sendWebPushToUser(userId, {
+            title: 'Certificate Issued',
+            body: 'Your university-verified certificate is now ready in your portfolio.',
+            url: '/certificates',
+            category: 'decision',
+          });
+        }
       }
     });
 
-    // New direct message
+    // New direct message (Push Allowed: Direct Message)
     eventBus.subscribe('message.sent', async (event) => {
       if (event.metadata?.recipientIds) {
         const recipientIds = event.metadata.recipientIds as string[];
@@ -97,12 +127,22 @@ export const notificationService = {
               data: {
                 userId: recipientId,
                 title: 'New Message',
-                body: 'You have a new message.',
+                body: 'You have a new direct message.',
                 severity: 'info',
                 entityType: 'message',
                 entityId: event.entityId,
               },
             });
+
+            // Web Push (PRD Anti-Spam: Direct Message)
+            if (isPushAllowedByAntiSpamRule(event.type, event.metadata)) {
+              await sendWebPushToUser(recipientId, {
+                title: 'New Direct Message',
+                body: 'You received a new message on VBridgeConnect.',
+                url: '/messages',
+                category: 'direct_message',
+              });
+            }
           }
         }
       }
@@ -118,8 +158,6 @@ async function createNotification(params: {
 }) {
   const { event, title, body, severity } = params;
 
-  // If there's a specific actor, notify them (for now — in production, this would
-  // look up the relevant users based on the entity)
   if (event.actorId) {
     try {
       await prisma.notification.create({
@@ -132,11 +170,20 @@ async function createNotification(params: {
           entityId: event.entityId,
         },
       });
+
+      // Filter through PRD Anti-Spam Rule for Push
+      if (isPushAllowedByAntiSpamRule(event.type, { severity, ...event.metadata })) {
+        await sendWebPushToUser(event.actorId, {
+          title,
+          body,
+          url: '/dashboard',
+          category: severity === 'urgent' ? 'deadline' : 'general',
+        });
+      }
     } catch (error) {
       console.error('[Notification] Failed to create notification:', error);
     }
   }
 
-  // TODO: Add email notification via transactional email provider
   console.log(`[Notification] ${severity.toUpperCase()}: ${title} — ${body}`);
 }
