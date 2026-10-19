@@ -196,12 +196,16 @@ test.describe('VBridgeConnect Comprehensive Audit Bots Suite', () => {
       if (!milestone) {
         let activity = await prisma.activity.findFirst();
         if (!activity) {
+          const dept = await prisma.department.findFirst();
+          const admin = await prisma.user.findFirst();
           activity = await prisma.activity.create({
             data: {
               title: 'TE Mini-Project 2026-27',
-              type: 'mini_project',
-              academicYear: '2026-27',
-              semester: 5,
+              description: 'TE Mini-Project 2026-27 description',
+              type: 'project',
+              capacity: 100,
+              departmentId: dept!.id,
+              ownerId: admin!.id,
             },
           });
         }
@@ -209,6 +213,7 @@ test.describe('VBridgeConnect Comprehensive Audit Bots Suite', () => {
           data: {
             activityId: activity.id,
             title: 'Review 2 Architecture Deliverable',
+            description: 'Architecture review deliverable',
             stageNumber: 2,
             weightage: 20,
             dueDate: new Date(Date.now() + 86400000 * 14),
@@ -312,7 +317,6 @@ test.describe('VBridgeConnect Comprehensive Audit Bots Suite', () => {
             type: 'platform_issued',
             status: 'issued',
             verificationHash: 'sha256-verified-institutional-ledger-e2e',
-            signatories: ['Dr. Sheetal Patil', 'Dean of Engineering'],
             issueDate: new Date(),
           },
         });
