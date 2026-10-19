@@ -170,7 +170,8 @@ export const StudentDashboard: React.FC = () => {
                   {metrics.enrolledProjects} active project
                   {metrics.enrolledProjects > 1 ? 's' : ''}
                 </span>{' '}
-                ({activeTeam?.name}). Mentored by{' '}
+                ({activeTeam?.name}
+                {activeTeam?.projectTitle ? ` — ${activeTeam.projectTitle}` : ''}). Mentored by{' '}
                 <span className="text-white font-semibold">
                   {activeTeam?.mentor?.name || 'Faculty Guide'}
                 </span>

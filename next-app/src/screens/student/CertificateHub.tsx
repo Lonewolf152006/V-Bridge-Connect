@@ -727,15 +727,44 @@ export const CertificateHub: React.FC = () => {
                       <>
                         <div className="flex items-center gap-2">
                           {cert.externalFileUrl ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              leftIcon={<FileText className="w-3.5 h-3.5 text-indigo-600" />}
-                              onClick={() => setPreviewDocCert(cert)}
-                              className="border-slate-200 text-slate-700 text-xs"
-                            >
-                              View Uploaded Receipt
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<FileText className="w-3.5 h-3.5 text-indigo-600" />}
+                                onClick={() => setPreviewDocCert(cert)}
+                                className="border-slate-200 text-slate-700 text-xs"
+                              >
+                                View Uploaded Receipt
+                              </Button>
+                              {isFaculty && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  leftIcon={<Download className="w-3.5 h-3.5 text-emerald-600" />}
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(cert.externalFileUrl!);
+                                      const blob = await response.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      const ext = cert.externalFileUrl!.split('?')[0].split('.').pop() || 'pdf';
+                                      a.download = `${cert.activityTitle || 'certificate'}.${ext}`;
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      document.body.removeChild(a);
+                                      URL.revokeObjectURL(url);
+                                    } catch {
+                                      window.open(cert.externalFileUrl!, '_blank');
+                                    }
+                                  }}
+                                  className="border-slate-200 text-slate-700 text-xs"
+                                >
+                                  Download
+                                </Button>
+                              )}
+                            </>
                           ) : (
                             <span className="text-xs text-slate-400 flex items-center gap-1">
                               <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />

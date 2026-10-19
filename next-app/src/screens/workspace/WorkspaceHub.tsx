@@ -176,21 +176,30 @@ export const WorkspaceHub: React.FC = () => {
                     isOnline: true,
                   }
                 : undefined,
-              members: (t.members || []).map((m: any) => ({
-                userId: m.user?.id || m.id,
-                role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR',
-                joinedAt: new Date().toISOString(),
-                user: {
-                  id: m.user?.id || m.id,
-                  name: m.user?.name || 'Student Member',
-                  email: m.user?.email || 'student@vit.edu.in',
-                  role: 'STUDENT',
-                  department: 'Electronics and Computer Science',
-                  avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
-                  institutionalId: m.user?.institutionalId || '24108B',
-                  isOnline: true,
-                },
-              })),
+              members: (() => {
+                const seen = new Set<string>();
+                return (t.members || []).reduce((acc: any[], m: any) => {
+                  const uid = m.user?.id || m.id;
+                  if (!uid || seen.has(uid)) return acc;
+                  seen.add(uid);
+                  acc.push({
+                    userId: uid,
+                    role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR',
+                    joinedAt: new Date().toISOString(),
+                    user: {
+                      id: uid,
+                      name: m.user?.name || 'Student Member',
+                      email: m.user?.email || 'student@vit.edu.in',
+                      role: 'STUDENT',
+                      department: 'Electronics and Computer Science',
+                      avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                      institutionalId: m.user?.institutionalId || '24108B',
+                      isOnline: true,
+                    },
+                  });
+                  return acc;
+                }, []);
+              })(),
               createdAt: new Date().toISOString(),
             }));
             setTeamsState(mapped);
@@ -291,44 +300,46 @@ export const WorkspaceHub: React.FC = () => {
     if (!hubProjectTitle.trim()) return;
 
     setIsAssigningProject(true);
-    const source = currentUser.role === 'INDUSTRY_PARTNER' ? 'industry_offered' : 'faculty_assigned';
+    const source: 'faculty_assigned' | 'industry_offered' =
+      currentUser.role === 'INDUSTRY_PARTNER' ? 'industry_offered' : 'faculty_assigned';
+    const updatedFields = {
+      projectTitle: hubProjectTitle.trim(),
+      projectDomain: hubProjectDomain,
+      projectDescription: hubProjectDesc.trim(),
+      projectSource: source,
+      projectStatus: 'in_progress' as const,
+      industryMentorName: hubIndustryMentor,
+    };
 
     try {
-      await fetch('/api/v1/mentor/assign-project', {
+      const res = await fetch('/api/v1/mentor/assign-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teamId: currentTeam.id,
-          projectTitle: hubProjectTitle.trim(),
-          projectDomain: hubProjectDomain,
-          projectDescription: hubProjectDesc.trim(),
-          industryMentorName: hubIndustryMentor,
+          projectTitle: updatedFields.projectTitle,
+          projectDomain: updatedFields.projectDomain,
+          projectDescription: updatedFields.projectDescription,
+          industryMentorName: updatedFields.industryMentorName,
           status: 'in_progress',
         }),
       });
 
-      // Update in-memory data
-      currentTeam.projectTitle = hubProjectTitle.trim();
-      currentTeam.projectDomain = hubProjectDomain;
-      currentTeam.projectDescription = hubProjectDesc.trim();
-      currentTeam.projectSource = source;
-      currentTeam.projectStatus = 'in_progress';
-      currentTeam.industryMentorName = hubIndustryMentor;
-      setTeamRefreshCount((c) => c + 1);
-
-      setIsAssignModalOpen(false);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Assign project API error:', errData);
+      }
     } catch (err) {
-      console.error('Failed to assign project:', err);
-      currentTeam.projectTitle = hubProjectTitle.trim();
-      currentTeam.projectDomain = hubProjectDomain;
-      currentTeam.projectDescription = hubProjectDesc.trim();
-      currentTeam.projectSource = source;
-      currentTeam.projectStatus = 'in_progress';
-      currentTeam.industryMentorName = hubIndustryMentor;
-      setTeamRefreshCount((c) => c + 1);
-      setIsAssignModalOpen(false);
+      console.error('Failed to assign project (network error):', err);
     } finally {
+      // Always update local state immutably so React re-renders correctly
+      setTeamsState((prev) =>
+        prev.map((t) =>
+          t.id === currentTeam.id ? { ...t, ...updatedFields } : t
+        )
+      );
       setIsAssigningProject(false);
+      setIsAssignModalOpen(false);
     }
   };
 

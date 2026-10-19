@@ -131,15 +131,35 @@ export async function GET() {
       console.warn('[StudentDashboardAPI] Database query fallback:', dbErr);
     }
 
+    // Deduplicate memberships so each team only appears once
+    const seenTeamIds = new Set<string>();
+    const uniqueMemberships = memberships.filter((m: any) => {
+      const tid = m.team?.id;
+      if (!tid || seenTeamIds.has(tid)) return false;
+      seenTeamIds.add(tid);
+      return true;
+    });
+
     // 4. Map teams into rich frontend objects
-    const mappedTeams = memberships.map((m: any) => {
+    const mappedTeams = uniqueMemberships.map((m: any) => {
       const t = m.team;
       const act = t.activity;
 
-      // Combine actual user members and pending roster members so team is complete
-      const existingUserEmails = new Set(t.members.map((mem: any) => mem.user.email.toLowerCase()));
-      const rosterOnlyMembers = t.rosterInvitations
-        .filter((r: any) => !existingUserEmails.has(r.email.toLowerCase()))
+      // Deduplicate active members by user id
+      const seenUserIds = new Set<string>();
+      const uniqueActiveMembers = (t.members || []).filter((mem: any) => {
+        const uid = mem.user?.id;
+        if (!uid || seenUserIds.has(uid)) return false;
+        seenUserIds.add(uid);
+        return true;
+      });
+
+      const existingUserEmails = new Set(
+        uniqueActiveMembers.map((mem: any) => mem.user.email?.toLowerCase().trim())
+      );
+
+      const rosterOnlyMembers = (t.rosterInvitations || [])
+        .filter((r: any) => !existingUserEmails.has(r.email?.toLowerCase().trim()))
         .map((r: any) => ({
           id: `roster-${r.id}`,
           name: r.name,
@@ -149,7 +169,7 @@ export async function GET() {
           status: 'invited',
         }));
 
-      const activeMembers = t.members.map((mem: any) => ({
+      const activeMembers = uniqueActiveMembers.map((mem: any) => ({
         id: mem.user.id,
         name: mem.user.name,
         email: mem.user.email,
@@ -291,9 +311,19 @@ export async function GET() {
           const t = roster.team;
           const act = t.activity;
 
-          const existingUserEmails = new Set(t.members.map((mem: any) => mem.user.email.toLowerCase()));
-          const rosterOnlyMembers = t.rosterInvitations
-            .filter((r: any) => !existingUserEmails.has(r.email.toLowerCase()))
+          const seenRosterUserIds = new Set<string>();
+          const uniqueRosterActiveMembers = (t.members || []).filter((mem: any) => {
+            const uid = mem.user?.id;
+            if (!uid || seenRosterUserIds.has(uid)) return false;
+            seenRosterUserIds.add(uid);
+            return true;
+          });
+
+          const existingUserEmails = new Set(
+            uniqueRosterActiveMembers.map((mem: any) => mem.user.email?.toLowerCase().trim())
+          );
+          const rosterOnlyMembers = (t.rosterInvitations || [])
+            .filter((r: any) => !existingUserEmails.has(r.email?.toLowerCase().trim()))
             .map((r: any) => ({
               id: `roster-${r.id}`,
               name: r.name,
@@ -303,7 +333,7 @@ export async function GET() {
               status: 'invited',
             }));
 
-          const activeMembers = t.members.map((mem: any) => ({
+          const activeMembers = uniqueRosterActiveMembers.map((mem: any) => ({
             id: mem.user.id,
             name: mem.user.name,
             email: mem.user.email,

@@ -24,19 +24,33 @@ export async function POST(request: NextRequest) {
 
     // Find team in database by ID, exact name, slug, or number
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
-    const normalizedName = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
-    const digitMatch = teamId.match(/\d+/)?.[0];
+    let teamInDb = null;
 
-    const teamInDb = await prisma.team.findFirst({
-      where: {
-        OR: [
-          ...(isUuid ? [{ id: teamId }] : []),
-          { name: { equals: teamId, mode: 'insensitive' as const } },
-          { name: { equals: normalizedName, mode: 'insensitive' as const } },
-          ...(digitMatch ? [{ name: { contains: digitMatch, mode: 'insensitive' as const } }] : []),
-        ],
-      },
-    });
+    if (isUuid) {
+      teamInDb = await prisma.team.findUnique({
+        where: { id: teamId },
+      });
+    }
+
+    if (!teamInDb) {
+      const normalizedName = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
+      const digitMatch = teamId.match(/\d+/)?.[0];
+
+      teamInDb = await prisma.team.findFirst({
+        where: {
+          OR: [
+            { name: { equals: teamId, mode: 'insensitive' as const } },
+            { name: { equals: normalizedName, mode: 'insensitive' as const } },
+            ...(digitMatch
+              ? [
+                  { name: { equals: `Mini ${digitMatch}`, mode: 'insensitive' as const } },
+                  { name: { contains: digitMatch, mode: 'insensitive' as const } },
+                ]
+              : []),
+          ],
+        },
+      });
+    }
 
     if (!teamInDb) {
       return NextResponse.json(

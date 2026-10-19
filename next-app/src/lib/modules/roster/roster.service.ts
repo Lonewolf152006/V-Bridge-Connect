@@ -47,8 +47,22 @@ export const rosterService = {
     });
 
     const teamsJoined: AutoConnectResult['teamsJoined'] = [];
+    const processedTeamIds = new Set<string>();
 
     for (const inv of pendingInvitations) {
+      if (processedTeamIds.has(inv.teamId)) {
+        await prisma.rosterInvitation.update({
+          where: { id: inv.id },
+          data: {
+            claimed: true,
+            claimedAt: new Date(),
+            claimedById: user.id,
+          },
+        }).catch(() => null);
+        continue;
+      }
+      processedTeamIds.add(inv.teamId);
+
       const isLead = inv.role === 'student_lead';
       const memberRole = isLead ? 'lead' : 'contributor';
 

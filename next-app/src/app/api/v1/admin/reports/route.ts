@@ -50,6 +50,21 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Deduplicate members for each team to guarantee unique roster entries
+    const sanitizedTeams = teamsWithMembers.map((t) => {
+      const seen = new Set<string>();
+      const dedupedMembers = t.members.filter((m) => {
+        const uid = m.user?.id;
+        if (!uid || seen.has(uid)) return false;
+        seen.add(uid);
+        return true;
+      });
+      return {
+        ...t,
+        members: dedupedMembers,
+      };
+    });
+
     // Average rubric score calculation
     let averageScore = 84.2;
     if (evalSubmissions.length > 0) {
@@ -67,7 +82,7 @@ export async function GET(req: NextRequest) {
         ['Team Name', 'Activity', 'Faculty Guide', 'Student Name', 'Student Email', 'Institutional ID', 'Role', 'Status'],
       ];
 
-      for (const t of teamsWithMembers) {
+      for (const t of sanitizedTeams) {
         for (const m of t.members) {
           rows.push([
             t.name,
@@ -119,7 +134,7 @@ export async function GET(req: NextRequest) {
           certificatesIssued: certificatesIssuedCount,
           averageRubricAttainment: `${averageScore}%`,
         },
-        cohortGroups: teamsWithMembers.map(t => ({
+        cohortGroups: sanitizedTeams.map(t => ({
           groupId: t.name,
           facultyGuide: t.mentor?.name || 'Assigned Faculty',
           facultyEmail: t.mentor?.email || '',
@@ -183,7 +198,7 @@ export async function GET(req: NextRequest) {
         totalStudents: totalStudentsCount,
         totalTeams: totalTeamsCount,
       },
-      teams: teamsWithMembers,
+      teams: sanitizedTeams,
       auditLogs: finalAuditLogs.map(log => ({
         id: log.id,
         action: log.action,

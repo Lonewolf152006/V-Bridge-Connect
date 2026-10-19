@@ -183,21 +183,30 @@ export const MentorDashboard: React.FC = () => {
                     isOnline: true,
                   }
                 : undefined,
-              members: (t.members || []).map((m: any) => ({
-                userId: m.user?.id || m.id,
-                role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'MEMBER',
-                joinedAt: new Date().toISOString(),
-                user: {
-                  id: m.user?.id || m.id,
-                  name: m.user?.name || 'Student Member',
-                  email: m.user?.email || 'student@vit.edu.in',
-                  role: 'STUDENT',
-                  department: 'Electronics and Computer Science',
-                  avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
-                  institutionalId: m.user?.institutionalId || '24108B',
-                  isOnline: true,
-                },
-              })),
+              members: (() => {
+                const seen = new Set<string>();
+                return (t.members || []).reduce((acc: any[], m: any) => {
+                  const uid = m.user?.id || m.id;
+                  if (!uid || seen.has(uid)) return acc;
+                  seen.add(uid);
+                  acc.push({
+                    userId: uid,
+                    role: m.role?.toUpperCase() === 'LEAD' ? 'LEAD' : 'MEMBER',
+                    joinedAt: new Date().toISOString(),
+                    user: {
+                      id: uid,
+                      name: m.user?.name || 'Student Member',
+                      email: m.user?.email || 'student@vit.edu.in',
+                      role: 'STUDENT',
+                      department: 'Electronics and Computer Science',
+                      avatarUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(m.user?.name || 'Student')}`,
+                      institutionalId: m.user?.institutionalId || '24108B',
+                      isOnline: true,
+                    },
+                  });
+                  return acc;
+                }, []);
+              })(),
               milestones: [],
             }));
             setTeamsState(mapped);
@@ -453,7 +462,7 @@ export const MentorDashboard: React.FC = () => {
     const source = isIndustryExpert ? 'industry_offered' : 'faculty_assigned';
 
     try {
-      await fetch('/api/v1/mentor/assign-project', {
+      const res = await fetch('/api/v1/mentor/assign-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -465,6 +474,12 @@ export const MentorDashboard: React.FC = () => {
           status: 'in_progress',
         }),
       });
+
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to save project assignment');
+      }
 
       // Update state locally
       setTeamsState((prev) =>
@@ -492,31 +507,12 @@ export const MentorDashboard: React.FC = () => {
       setTimeout(() => {
         setIsAssignModalOpen(false);
       }, 1000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Assign project error:', err);
-      // Fallback local update
-      setTeamsState((prev) =>
-        prev.map((t) =>
-          t.id === selectedTeamId
-            ? {
-                ...t,
-                projectTitle: assignTitle.trim(),
-                projectDomain: assignDomain,
-                projectDescription: assignDescription.trim(),
-                projectSource: source,
-                projectStatus: 'in_progress',
-                industryMentorName: assignIndustryMentor,
-              }
-            : t
-        )
-      );
       setNotificationBanner({
-        type: 'success',
-        message: `Project "${assignTitle.trim()}" assigned to ${activeSelectedTeam.name}!`,
+        type: 'info',
+        message: `Error assigning project: ${err.message || 'Check database connection'}.`,
       });
-      setTimeout(() => {
-        setIsAssignModalOpen(false);
-      }, 1000);
     } finally {
       setIsAssigning(false);
     }
