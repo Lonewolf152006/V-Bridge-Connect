@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import prisma from '@/lib/db/prisma';
 import type { Activity, ActivityCategory, ActivityStatus } from '@/types';
 
@@ -55,20 +56,48 @@ function mapDbToFrontendActivity(dbAct: any): Activity {
   };
 }
 
-import { requireAuth } from '@/lib/auth/rbac';
-import { AuthError } from '@/lib/auth/jwt';
+const getActivitiesQuerySchema = z
+  .object({
+    category: z.string().optional(),
+    department: z.string().optional(),
+    search: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const department = searchParams.get('department');
-    const search = searchParams.get('search');
+const createActivitySchema = z
+  .object({
+    title: z.string().min(1, 'Title is required').max(200),
+    description: z.string().max(2000).optional(),
+    category: z.enum(['CAPSTONE', 'RESEARCH', 'HACKATHON', 'INTERNSHIP', 'INDUSTRY_PROJECT']).optional().default('CAPSTONE'),
+    departmentId: z.string().optional(),
+    department: z.string().optional(),
+    capacity: z.union([z.number(), z.string()]).optional().transform((v) => (v ? Number(v) : 20)),
+    minTeamSize: z.union([z.number(), z.string()]).optional().transform((v) => (v ? Number(v) : 1)),
+    maxTeamSize: z.union([z.number(), z.string()]).optional().transform((v) => (v ? Number(v) : 5)),
+    applicationDeadline: z.string().optional(),
+    prerequisites: z.union([z.array(z.string()), z.string()]).optional(),
+  })
+  .strict();
+
+export const GET = apiRoute(
+  {
+    requireAuth: false,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getActivitiesQuerySchema,
+  },
+  async ({ query, requestId }) => {
+    const limit = query.limit || 50;
 
     const dbActivities = await prisma.activity.findMany({
       where: {
         status: { in: ['published', 'active', 'applications_closed', 'under_final_review', 'completed'] },
       },
+      take: limit + 1,
       include: {
         department: true,
         owner: true,
@@ -79,58 +108,53 @@ export async function GET(request: Request) {
 
     let activities = dbActivities.map(mapDbToFrontendActivity);
 
-    if (category && category !== 'ALL') {
-      activities = activities.filter((a) => a.category === category);
+    if (query.category && query.category !== 'ALL') {
+      activities = activities.filter((a) => a.category === query.category);
     }
 
-    if (department && department !== 'ALL') {
-      activities = activities.filter((a) => a.department === department);
+    if (query.department && query.department !== 'ALL') {
+      activities = activities.filter((a) => a.department === query.department);
     }
 
-    if (search) {
-      const q = search.toLowerCase();
+    if (query.search) {
+      const q = query.search.toLowerCase();
       activities = activities.filter(
         (a) => a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      total: activities.length,
-      data: activities,
-    });
-  } catch (error) {
-    console.error('[API activities error]:', error);
-    return NextResponse.json({
-      success: true,
-      total: 0,
-      data: [],
+    const hasMore = activities.length > limit;
+    const paginated = hasMore ? activities.slice(0, limit) : activities;
+
+    return createSuccessResponse(paginated, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor: hasMore ? paginated[paginated.length - 1]?.id : null,
+        total: activities.length,
+      },
     });
   }
-}
+);
 
-export async function POST(request: Request) {
-  try {
-    const { getOptionalSession } = await import('@/lib/auth/get-session');
-    const session = await getOptionalSession();
-
-    let userId = session?.id || '00000000-0000-0000-0000-000000000011';
-    let userDeptId = session?.departmentId || undefined;
-
-    if (!session) {
-      try {
-        const tokenUser = await requireAuth(request, 'coordinator', 'super_admin');
-        userId = tokenUser.userId;
-        userDeptId = tokenUser.departmentId;
-      } catch {
-        // Fallback for UI session demo
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['coordinator', 'super_admin'],
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: createActivitySchema,
+  },
+  async ({ body, user, requestId }) => {
+    let deptId = body.departmentId || user.departmentId;
+    if (!deptId) {
+      const defaultDept = await prisma.department.findFirst();
+      if (!defaultDept) {
+        return createErrorResponse('VALIDATION_ERROR', 'No institutional department configured.', 422, requestId);
       }
+      deptId = defaultDept.id;
     }
-
-    const body = await request.json();
-
-    // Find default department if not provided
-    const defaultDept = await prisma.department.findFirst().catch(() => null);
 
     const typeMapping: Record<string, string> = {
       CAPSTONE: 'capstone',
@@ -140,109 +164,38 @@ export async function POST(request: Request) {
       INDUSTRY_PROJECT: 'project',
     };
 
-    let createdActivity: Activity;
+    const parsedPrereqs = body.prerequisites
+      ? Array.isArray(body.prerequisites)
+        ? body.prerequisites
+        : body.prerequisites.split(',').map((s: string) => s.trim())
+      : ['Python', 'Git'];
 
-    if (defaultDept) {
-      try {
-        const created = await prisma.activity.create({
-          data: {
-            title: body.title || 'Untitled Opportunity',
-            description: body.description || '',
-            type: typeMapping[body.category] || 'project',
-            status: 'published',
-            departmentId: body.departmentId || userDeptId || defaultDept.id,
-            ownerId: userId,
-            capacity: Number(body.capacity) || 20,
-            teamSizeMin: Number(body.minTeamSize) || 1,
-            teamSizeMax: Number(body.maxTeamSize) || 5,
-            applicationDeadline: body.applicationDeadline
-              ? new Date(body.applicationDeadline)
-              : new Date(Date.now() + 30 * 86400000),
-            eligibility: {
-              prerequisites: body.prerequisites
-                ? (Array.isArray(body.prerequisites)
-                    ? body.prerequisites
-                    : body.prerequisites.split(',').map((s: string) => s.trim()))
-                : ['Python', 'Git'],
-            },
-          },
-          include: {
-            department: true,
-            owner: true,
-            milestones: true,
-          },
-        });
-        createdActivity = mapDbToFrontendActivity(created);
-      } catch (dbErr) {
-        console.warn('[Activity POST] DB create fallback to mock:', dbErr);
-        createdActivity = {
-          id: `act-${Date.now()}`,
-          title: body.title || 'Untitled Opportunity',
-          description: body.description || '',
-          category: body.category || 'CAPSTONE',
-          status: 'OPEN_FOR_APPLICATIONS',
-          department: body.department || 'Electronics and Computer Science',
-          capacity: Number(body.capacity) || 20,
-          filledSeats: 0,
-          teamSizeMin: Number(body.minTeamSize) || 1,
-          teamSizeMax: Number(body.maxTeamSize) || 5,
-          applicationDeadline:
-            body.applicationDeadline ||
-            new Date(Date.now() + 30 * 86400000).toISOString(),
-          prerequisites: Array.isArray(body.prerequisites)
-            ? body.prerequisites
-            : (body.prerequisites || 'Python, Git').split(',').map((s: string) => s.trim()),
-          supervisorId: userId,
-          milestones: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
-    } else {
-      createdActivity = {
-        id: `act-${Date.now()}`,
-        title: body.title || 'Untitled Opportunity',
-        description: body.description || '',
-        category: body.category || 'CAPSTONE',
-        status: 'OPEN_FOR_APPLICATIONS',
-        department: body.department || 'Electronics and Computer Science',
-        capacity: Number(body.capacity) || 20,
-        filledSeats: 0,
-        teamSizeMin: Number(body.minTeamSize) || 1,
-        teamSizeMax: Number(body.maxTeamSize) || 5,
-        applicationDeadline:
-          body.applicationDeadline ||
-          new Date(Date.now() + 30 * 86400000).toISOString(),
-        prerequisites: Array.isArray(body.prerequisites)
-          ? body.prerequisites
-          : (body.prerequisites || 'Python, Git').split(',').map((s: string) => s.trim()),
-        supervisorId: userId,
-        milestones: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Opportunity published successfully to catalog',
-        data: createdActivity,
-        auditHash: `sha256_${Date.now()}`,
+    const created = await prisma.activity.create({
+      data: {
+        title: body.title.trim(),
+        description: body.description?.trim() || '',
+        type: typeMapping[body.category] || 'capstone',
+        status: 'published',
+        departmentId: deptId,
+        ownerId: user.userId,
+        capacity: body.capacity || 20,
+        teamSizeMin: body.minTeamSize || 1,
+        teamSizeMax: body.maxTeamSize || 5,
+        applicationDeadline: body.applicationDeadline
+          ? new Date(body.applicationDeadline)
+          : new Date(Date.now() + 30 * 86400000),
+        eligibility: {
+          prerequisites: parsedPrereqs,
+        },
       },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    if (error instanceof AuthError) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.statusCode }
-      );
-    }
-    console.error('[API create activity error]:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to create academic opportunity' },
-      { status: 400 }
-    );
+      include: {
+        department: true,
+        owner: true,
+        milestones: true,
+      },
+    });
+
+    const mapped = mapDbToFrontendActivity(created);
+    return createSuccessResponse(mapped, { status: 201, requestId });
   }
-}
+);

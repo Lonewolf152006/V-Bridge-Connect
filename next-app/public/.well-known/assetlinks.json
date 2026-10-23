@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.edu.vit.vbridgeconnect",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:17:86:14:0E:01:A0:63:F5:BD:98:97:54:19:BE:85:2E:39:19:D4:FF:6F:4D:5E:2B:60:A3:8C:36:20"
+      ]
+    }
+  }
+]

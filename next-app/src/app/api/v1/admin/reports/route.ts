@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       prisma.activity.count({ where: { status: { in: ['active', 'published'] } } }),
       prisma.user.count({ where: { role: 'student' } }),
       prisma.team.count(),
-      prisma.certificate.count({ where: { status: 'issued' } }),
+      prisma.certificate.count({ where: { status: 'issued', type: 'platform_issued' } }),
       prisma.submission.count(),
       prisma.submission.findMany({
         where: { totalScore: { not: null } },
@@ -187,6 +187,11 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        filters: { export: exportType || 'summary' },
+        reproducible: true,
+      },
       metrics: {
         activeProjects: Math.max(totalTeamsCount, 1),
         yoyEnrollmentChange: '+18% YoY Enrollment',

@@ -33,7 +33,6 @@ export default auth((req) => {
     '/offline',
     '/sw.js',
     '/.well-known',
-    '/api',
     '/_next',
     '/favicon.ico',
     '/manifest.webmanifest',
@@ -41,26 +40,42 @@ export default auth((req) => {
     '/icon-192x192.png',
     '/icon-512x512.png',
     '/icon-maskable-512x512.png',
+    '/api/auth',
+    '/api/v1/certificates/verify',
+    '/api/health',
   ];
   if (publicPaths.some((p) => pathname === p || pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // 2. Resolve user role from session or demo cookie
-  let userRole = (req.auth?.user as { role?: string })?.role?.toLowerCase();
-  const demoCookie = req.cookies.get('vbridge_demo_user');
-  if (demoCookie?.value && !userRole) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
-      userRole = (parsed.role || '').toLowerCase();
-    } catch {
-      userRole = 'student';
-    }
-  }
+  // 2. Resolve user role strictly from authenticated session or Bearer token
+  const userRole = (req.auth?.user as { role?: string })?.role?.toLowerCase();
+  const hasBearer = Boolean(req.headers.get('authorization')?.startsWith('Bearer '));
+  const isAuth = Boolean(req.auth?.user) || hasBearer;
 
-  // 3. If unauthenticated, redirect to login using incoming host
-  const isAuth = Boolean(req.auth?.user || demoCookie?.value);
+  // 3. If unauthenticated, return 401 for API or redirect pages to login
   if (!isAuth) {
+    if (pathname.startsWith('/api')) {
+      const requestId = crypto.randomUUID();
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required',
+            details: [],
+            requestId,
+          },
+        },
+        {
+          status: 401,
+          headers: {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'X-Request-Id': requestId,
+          },
+        }
+      );
+    }
     const loginUrl = new URL('/login', req.nextUrl.origin);
     if (pathname !== '/' && pathname !== '/login') {
       loginUrl.searchParams.set('callbackUrl', pathname);

@@ -1,22 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import prisma from '@/lib/db/prisma';
-import { getOptionalSession } from '@/lib/auth/get-session';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Helper to find or create a user with a valid UUID
 async function resolveDbUser(userPayload: { id?: string; name?: string; email?: string; role?: string }) {
   const email = (userPayload.email || '').toLowerCase().trim();
   const name = userPayload.name || 'User';
   const role = (userPayload.role?.toLowerCase() || 'student') as any;
 
-  // 1. Try finding by ID if valid UUID
   if (userPayload.id && UUID_REGEX.test(userPayload.id)) {
     const existing = await prisma.user.findUnique({ where: { id: userPayload.id } });
     if (existing) return existing;
   }
 
-  // 2. Try finding by email
   if (email) {
     const existing = await prisma.user.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } },
@@ -24,7 +21,6 @@ async function resolveDbUser(userPayload: { id?: string; name?: string; email?: 
     if (existing) return existing;
   }
 
-  // 3. Try finding by name
   if (name) {
     const existing = await prisma.user.findFirst({
       where: { name: { equals: name, mode: 'insensitive' } },
@@ -32,7 +28,6 @@ async function resolveDbUser(userPayload: { id?: string; name?: string; email?: 
     if (existing) return existing;
   }
 
-  // 4. Create new user in DB so they have a persistent real UUID
   const cleanEmail = email || `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@vit.edu.in`;
   return prisma.user.create({
     data: {
@@ -44,7 +39,6 @@ async function resolveDbUser(userPayload: { id?: string; name?: string; email?: 
   });
 }
 
-// Helper to find or create a conversation for a channelId
 async function resolveDbConversation(channelId: string) {
   let conv = await prisma.conversation.findFirst({
     where: { name: channelId },
@@ -63,15 +57,51 @@ async function resolveDbConversation(channelId: string) {
   return conv;
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const channelId = searchParams.get('channelId') || 'mini-6-all';
+const getMessagesQuerySchema = z
+  .object({
+    channelId: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
+
+const postMessageSchema = z
+  .object({
+    channelId: z.string().default('mini-6-all'),
+    content: z.string().optional(),
+    codeSnippet: z
+      .object({
+        language: z.string().optional(),
+        code: z.string(),
+      })
+      .optional(),
+    senderId: z.string().optional(),
+    senderName: z.string().optional(),
+    senderEmail: z.string().optional(),
+    role: z.string().optional(),
+    attachmentUrl: z.string().optional(),
+    attachmentName: z.string().optional(),
+  })
+  .strict();
+
+export const GET = apiRoute(
+  {
+    requireAuth: true,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getMessagesQuerySchema,
+  },
+  async ({ query, requestId }) => {
+    const channelId = query.channelId || 'mini-6-all';
+    const limit = query.limit || 50;
 
     const conv = await prisma.conversation.findFirst({
       where: { name: channelId },
       include: {
         messages: {
+          take: limit + 1,
           orderBy: { createdAt: 'asc' },
           include: {
             sender: {
@@ -89,14 +119,16 @@ export async function GET(request: NextRequest) {
     });
 
     if (!conv || conv.messages.length === 0) {
-      return NextResponse.json({
-        success: true,
-        channelId,
-        data: [],
+      return createSuccessResponse([], {
+        requestId,
+        pagination: { limit, hasMore: false },
       });
     }
 
-    const formattedMessages = conv.messages.map((m) => {
+    const hasMore = conv.messages.length > limit;
+    const paginatedMsgs = hasMore ? conv.messages.slice(0, limit) : conv.messages;
+
+    const formattedMessages = paginatedMsgs.map((m) => {
       let text = m.content;
       let codeSnippet: { language: string; code: string } | undefined = undefined;
 
@@ -140,67 +172,50 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      channelId,
-      data: formattedMessages,
+    return createSuccessResponse(formattedMessages, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor: hasMore ? formattedMessages[formattedMessages.length - 1]?.id : null,
+      },
     });
-  } catch (error: any) {
-    console.error('[GET /api/messages error]:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch messages' },
-      { status: 500 }
-    );
   }
-}
+);
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getOptionalSession().catch(() => null);
-    const body = await request.json();
-    const {
-      channelId = 'mini-6-all',
-      content,
-      codeSnippet,
-      senderId,
-      senderName,
-      senderEmail,
-      role,
-      attachmentUrl,
-      attachmentName,
-    } = body;
-
-    let finalContent = (content || '').trim();
-    if (codeSnippet?.code) {
-      const lang = codeSnippet.language || 'python';
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    idempotent: true,
+    rateLimit: { limit: 60, windowMs: 60000 },
+    bodySchema: postMessageSchema,
+  },
+  async ({ body, user, requestId }) => {
+    let finalContent = (body.content || '').trim();
+    if (body.codeSnippet?.code) {
+      const lang = body.codeSnippet.language || 'python';
       finalContent = finalContent
-        ? `${finalContent}\n\n\`\`\`${lang}\n${codeSnippet.code}\n\`\`\``
-        : `\`\`\`${lang}\n${codeSnippet.code}\n\`\`\``;
+        ? `${finalContent}\n\n\`\`\`${lang}\n${body.codeSnippet.code}\n\`\`\``
+        : `\`\`\`${lang}\n${body.codeSnippet.code}\n\`\`\``;
     }
 
-    if (!finalContent) {
-      if (attachmentName) {
-        finalContent = `Attached: ${attachmentName}`;
-      } else {
-        return NextResponse.json(
-          { success: false, error: 'Message content cannot be empty' },
-          { status: 400 }
-        );
-      }
+    if (!finalContent && !body.attachmentName) {
+      return createErrorResponse('VALIDATION_ERROR', 'Message content or attachment is required', 422, requestId);
     }
 
-    // Resolve sender in database
+    if (!finalContent && body.attachmentName) {
+      finalContent = `Attached: ${body.attachmentName}`;
+    }
+
     const dbSender = await resolveDbUser({
-      id: session?.id || senderId,
-      name: session?.name || senderName,
-      email: session?.email || senderEmail,
-      role: session?.role || role,
+      id: user.userId || body.senderId,
+      name: user.name || body.senderName,
+      email: user.email || body.senderEmail,
+      role: user.role || body.role,
     });
 
-    // Resolve conversation in database
-    const conv = await resolveDbConversation(channelId);
+    const conv = await resolveDbConversation(body.channelId);
 
-    // Ensure sender is a participant
     const existingParticipant = await prisma.conversationParticipant.findFirst({
       where: {
         conversationId: conv.id,
@@ -218,14 +233,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create the message in database
     const createdMsg = await prisma.message.create({
       data: {
         conversationId: conv.id,
         senderId: dbSender.id,
         content: finalContent,
-        attachmentUrl: attachmentUrl || undefined,
-        attachmentName: attachmentName || undefined,
+        attachmentUrl: body.attachmentUrl || undefined,
+        attachmentName: body.attachmentName || undefined,
       },
       include: {
         sender: {
@@ -240,7 +254,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Update conversation timestamp
     await prisma.conversation.update({
       where: { id: conv.id },
       data: { updatedAt: new Date() },
@@ -248,15 +261,15 @@ export async function POST(request: NextRequest) {
 
     const responseMessage = {
       id: createdMsg.id,
-      channelId,
+      channelId: body.channelId,
       senderId: dbSender.id,
       senderName: createdMsg.sender?.name || dbSender.name,
       senderEmail: createdMsg.sender?.email || dbSender.email,
       role: (createdMsg.sender?.role?.toUpperCase() || dbSender.role.toUpperCase()) as any,
       timestamp: new Date(createdMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       createdAt: createdMsg.createdAt.toISOString(),
-      text: content?.trim() || '',
-      codeSnippet: codeSnippet || undefined,
+      text: body.content?.trim() || '',
+      codeSnippet: body.codeSnippet || undefined,
       reactions: [],
       attachments: createdMsg.attachmentUrl
         ? [
@@ -276,15 +289,6 @@ export async function POST(request: NextRequest) {
         : undefined,
     };
 
-    return NextResponse.json(
-      { success: true, data: responseMessage },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    console.error('[POST /api/messages error]:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to send message' },
-      { status: 500 }
-    );
+    return createSuccessResponse(responseMessage, { status: 201, requestId });
   }
-}
+);

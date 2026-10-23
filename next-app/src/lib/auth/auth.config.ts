@@ -38,21 +38,10 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
-      let userRole = (session?.user as { role?: string })?.role?.toLowerCase();
+      const userRole = (session?.user as { role?: string })?.role?.toLowerCase();
 
-      // Check for demo user cookie
-      const demoCookie = request.cookies.get('vbridge_demo_user');
-      if (demoCookie?.value && !userRole) {
-        try {
-          const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
-          userRole = (parsed.role || '').toLowerCase();
-        } catch {
-          userRole = 'student';
-        }
-      }
-
-      // If neither session nor demo cookie is present, redirect to login on current domain
-      if (!session?.user && !demoCookie?.value) {
+      // If session is not present, redirect to login on current domain
+      if (!session?.user) {
         const loginUrl = new URL('/login', request.nextUrl);
         if (pathname !== '/' && pathname !== '/login') {
           loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);

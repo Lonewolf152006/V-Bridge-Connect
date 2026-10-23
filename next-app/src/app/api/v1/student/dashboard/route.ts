@@ -6,9 +6,6 @@ import prisma from '@/lib/db/prisma';
 import { getOptionalSession } from '@/lib/auth/get-session';
 import { rosterService } from '@/lib/modules/roster/roster.service';
 
-// 5-minute in-memory debounce cache to prevent redundant roster_invitations database scans
-const autoConnectCache = new Map<string, number>();
-
 export async function GET() {
   try {
     const sessionUser = await getOptionalSession();
@@ -35,17 +32,19 @@ export async function GET() {
 
     const email = user.email.toLowerCase().trim();
 
-    // 1. Ensure any pending roster invitations are connected (5-minute debounce)
+    // 1. Ensure any pending roster invitations are connected (fast stateless index check)
     try {
-      const lastChecked = autoConnectCache.get(email);
-      if (!lastChecked || Date.now() - lastChecked > 300_000) {
+      const hasPending = await prisma.rosterInvitation.findFirst({
+        where: { email, claimed: false },
+        select: { id: true },
+      });
+      if (hasPending) {
         await rosterService.autoConnectUserOnLogin({
           id: user.id,
           email,
           name: user.name,
           role: user.role,
         });
-        autoConnectCache.set(email, Date.now());
       }
     } catch (e) {
       console.warn('[StudentDashboardAPI] AutoConnect check warning:', e);

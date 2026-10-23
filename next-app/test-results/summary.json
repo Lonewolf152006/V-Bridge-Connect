@@ -3,8 +3,7 @@
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@playwright\\test\\cli.js",
-      "test",
-      "tests/pwa-mobile-twa.spec.ts"
+      "test"
     ],
     "configFile": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\playwright.config.ts",
     "rootDir": "C:/Users/Vedant/Downloads/V - Bridge connect/next-app/tests",
@@ -132,7 +131,7 @@
           "specs": [
             {
               "title": "1. Manifest & Digital Asset Links Verification",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -145,18 +144,48 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4116,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 5051,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m500\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m500\u001b[39m\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:63:36",
+                        "location": {
+                          "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                          "column": 36,
+                          "line": 63
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 61 |\u001b[39m     \u001b[90m// B. Verify /.well-known/assetlinks.json\u001b[39m\n \u001b[90m 62 |\u001b[39m     \u001b[36mconst\u001b[39m assetlinksRes \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m request\u001b[33m.\u001b[39m\u001b[36mget\u001b[39m(\u001b[32m'/.well-known/assetlinks.json'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     expect(assetlinksRes\u001b[33m.\u001b[39mstatus())\u001b[33m.\u001b[39mtoBe(\u001b[35m200\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m     expect(assetlinksRes\u001b[33m.\u001b[39mheaders()[\u001b[32m'content-type'\u001b[39m])\u001b[33m.\u001b[39mtoContain(\u001b[32m'application/json'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 65 |\u001b[39m\n \u001b[90m 66 |\u001b[39m     \u001b[36mconst\u001b[39m assetlinks \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m assetlinksRes\u001b[33m.\u001b[39mjson()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                            "column": 36,
+                            "line": 63
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m500\u001b[39m\n\n  61 |     // B. Verify /.well-known/assetlinks.json\n  62 |     const assetlinksRes = await request.get('/.well-known/assetlinks.json');\n> 63 |     expect(assetlinksRes.status()).toBe(200);\n     |                                    ^\n  64 |     expect(assetlinksRes.headers()['content-type']).toContain('application/json');\n  65 |\n  66 |     const assetlinks = await assetlinksRes.json();\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:63:36"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:29:52.498Z",
+                      "startTime": "2026-10-23T19:29:29.451Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-f0881-al-Asset-Links-Verification-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                        "column": 36,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "bbac90c6dbb1bf01ad34-c13fad24f8166a3e7ec3",
@@ -166,7 +195,7 @@
             },
             {
               "title": "2. Service Worker strict no-cache for logged-in data & offline fallback",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -177,20 +206,59 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 11788,
-                      "errors": [],
-                      "stdout": [],
+                      "status": "failed",
+                      "duration": 6694,
+                      "error": {
+                        "message": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n\n  94 expect(offlineHtml).toMatch(/You(&#x27;|')re Offline/);\n  95 \n  96 // C. Database mutation proof: Logged-in page NEVER served from stale cache\n→ 97 const user = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.",
+                        "stack": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n\n  94 expect(offlineHtml).toMatch(/You(&#x27;|')re Offline/);\n  95 \n  96 // C. Database mutation proof: Logged-in page NEVER served from stale cache\n→ 97 const user = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:18",
+                        "location": {
+                          "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                          "column": 36,
+                          "line": 97
+                        },
+                        "snippet": "\u001b[0m \u001b[90m  95 |\u001b[39m\n \u001b[90m  96 |\u001b[39m     \u001b[90m// C. Database mutation proof: Logged-in page NEVER served from stale cache\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  97 |\u001b[39m     \u001b[36mconst\u001b[39m user \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m prisma\u001b[33m.\u001b[39muser\u001b[33m.\u001b[39mfindFirst({ where\u001b[33m:\u001b[39m { email\u001b[33m:\u001b[39m \u001b[32m'vedant.nikumbh@vit.edu.in'\u001b[39m } })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m  98 |\u001b[39m     \u001b[36mconst\u001b[39m membership \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m prisma\u001b[33m.\u001b[39mteamMembership\u001b[33m.\u001b[39mfindFirst({\n \u001b[90m  99 |\u001b[39m       where\u001b[33m:\u001b[39m { userId\u001b[33m:\u001b[39m user\u001b[33m!\u001b[39m\u001b[33m.\u001b[39mid }\u001b[33m,\u001b[39m\n \u001b[90m 100 |\u001b[39m       include\u001b[33m:\u001b[39m { team\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m }\u001b[33m,\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                            "column": 36,
+                            "line": 97
+                          },
+                          "message": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n\n  94 expect(offlineHtml).toMatch(/You(&#x27;|')re Offline/);\n  95 \n  96 // C. Database mutation proof: Logged-in page NEVER served from stale cache\n→ 97 const user = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n\n   95 |\n   96 |     // C. Database mutation proof: Logged-in page NEVER served from stale cache\n>  97 |     const user = await prisma.user.findFirst({ where: { email: 'vedant.nikumbh@vit.edu.in' } });\n      |                                    ^\n   98 |     const membership = await prisma.teamMembership.findFirst({\n   99 |       where: { userId: user!.id },\n  100 |       include: { team: true },\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:18"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "\u001b[31mprisma:error\u001b[39m \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:97:36\n\n  94 expect(offlineHtml).toMatch(/You(&#x27;|')re Offline/);\n  95 \n  96 // C. Database mutation proof: Logged-in page NEVER served from stale cache\n→ 97 const user = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n"
+                        }
+                      ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:29:56.775Z",
+                      "startTime": "2026-10-23T19:29:35.303Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-082d5-ed-in-data-offline-fallback-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-082d5-ed-in-data-offline-fallback-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                        "column": 36,
+                        "line": 97
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "bbac90c6dbb1bf01ad34-d640299f52b4ec5980fa",
@@ -211,15 +279,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4369,
+                      "duration": 2169,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:09.040Z",
+                      "startTime": "2026-10-23T19:29:43.483Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -234,7 +302,7 @@
             },
             {
               "title": "4. Web Push: VAPID endpoint registration and PRD anti-spam compliance",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -245,20 +313,50 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2201,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 215,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:184:32",
+                        "location": {
+                          "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                          "column": 32,
+                          "line": 184
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 182 |\u001b[39m     \u001b[90m// A. GET /api/v1/push/subscribe returns public key\u001b[39m\n \u001b[90m 183 |\u001b[39m     \u001b[36mconst\u001b[39m pubKeyRes \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m request\u001b[33m.\u001b[39m\u001b[36mget\u001b[39m(\u001b[32m'/api/v1/push/subscribe'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 184 |\u001b[39m     expect(pubKeyRes\u001b[33m.\u001b[39mstatus())\u001b[33m.\u001b[39mtoBe(\u001b[35m200\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 185 |\u001b[39m     \u001b[36mconst\u001b[39m pubKeyJson \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m pubKeyRes\u001b[33m.\u001b[39mjson()\u001b[33m;\u001b[39m\n \u001b[90m 186 |\u001b[39m     expect(pubKeyJson\u001b[33m.\u001b[39msuccess)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 187 |\u001b[39m     expect(pubKeyJson\u001b[33m.\u001b[39mpublicKey)\u001b[33m.\u001b[39mtoBeTruthy()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                            "column": 32,
+                            "line": 184
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m401\u001b[39m\n\n  182 |     // A. GET /api/v1/push/subscribe returns public key\n  183 |     const pubKeyRes = await request.get('/api/v1/push/subscribe');\n> 184 |     expect(pubKeyRes.status()).toBe(200);\n      |                                ^\n  185 |     const pubKeyJson = await pubKeyRes.json();\n  186 |     expect(pubKeyJson.success).toBe(true);\n  187 |     expect(pubKeyJson.publicKey).toBeTruthy();\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:184:32"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:13.505Z",
+                      "startTime": "2026-10-23T19:29:45.819Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-87aec-nd-PRD-anti-spam-compliance-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                        "column": 32,
+                        "line": 184
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "bbac90c6dbb1bf01ad34-6996033eac4ea439ab0d",
@@ -279,15 +377,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4809,
+                      "duration": 2366,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:15.743Z",
+                      "startTime": "2026-10-23T19:29:46.990Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -313,15 +411,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 9350,
+                      "duration": 3002,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:20.631Z",
+                      "startTime": "2026-10-23T19:29:49.591Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -347,15 +445,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 15552,
+                      "duration": 3215,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:30.169Z",
+                      "startTime": "2026-10-23T19:29:52.616Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -381,15 +479,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 10642,
+                      "duration": 2708,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:45.896Z",
+                      "startTime": "2026-10-23T19:29:55.844Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -415,15 +513,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3395,
+                      "duration": 2877,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:30:56.615Z",
+                      "startTime": "2026-10-23T19:29:58.564Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -449,15 +547,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4326,
+                      "duration": 2722,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:31:00.078Z",
+                      "startTime": "2026-10-23T19:30:01.454Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -483,15 +581,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3255,
+                      "duration": 2762,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:31:04.540Z",
+                      "startTime": "2026-10-23T19:30:04.192Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -517,15 +615,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3237,
+                      "duration": 2767,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:31:07.836Z",
+                      "startTime": "2026-10-23T19:30:06.972Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -540,7 +638,7 @@
             },
             {
               "title": "6. LiveKit: screen-share hidden on mobile platforms and orientation handling",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -551,20 +649,59 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 18103,
-                      "errors": [],
-                      "stdout": [],
+                      "status": "failed",
+                      "duration": 5188,
+                      "error": {
+                        "message": "PrismaClientInitializationError: \nInvalid `prisma.team.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n\n  325   },\n  326 ]);\n  327 \n→ 328 const team = await prisma.team.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.",
+                        "stack": "PrismaClientInitializationError: \nInvalid `prisma.team.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n\n  325   },\n  326 ]);\n  327 \n→ 328 const team = await prisma.team.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:18",
+                        "location": {
+                          "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                          "column": 36,
+                          "line": 328
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 326 |\u001b[39m     ])\u001b[33m;\u001b[39m\n \u001b[90m 327 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 328 |\u001b[39m     \u001b[36mconst\u001b[39m team \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m prisma\u001b[33m.\u001b[39mteam\u001b[33m.\u001b[39mfindFirst({ select\u001b[33m:\u001b[39m { id\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m } })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 329 |\u001b[39m     \u001b[36mconst\u001b[39m teamId \u001b[33m=\u001b[39m team\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mid \u001b[33m||\u001b[39m \u001b[32m'team-mini-1'\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 330 |\u001b[39m\n \u001b[90m 331 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m`/projects/${teamId}`\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                            "column": 36,
+                            "line": 328
+                          },
+                          "message": "PrismaClientInitializationError: \nInvalid `prisma.team.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n\n  325   },\n  326 ]);\n  327 \n→ 328 const team = await prisma.team.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n\n  326 |     ]);\n  327 |\n> 328 |     const team = await prisma.team.findFirst({ select: { id: true } });\n      |                                    ^\n  329 |     const teamId = team?.id || 'team-mini-1';\n  330 |\n  331 |     await page.goto(`/projects/${teamId}`);\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:18"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "\u001b[31mprisma:error\u001b[39m \nInvalid `prisma.team.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:328:36\n\n  325   },\n  326 ]);\n  327 \n→ 328 const team = await prisma.team.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n"
+                        }
+                      ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:31:11.125Z",
+                      "startTime": "2026-10-23T19:30:09.751Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-10e0d-ms-and-orientation-handling-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-10e0d-ms-and-orientation-handling-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                        "column": 36,
+                        "line": 328
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "bbac90c6dbb1bf01ad34-c9a90b7a5db78f226063",
@@ -574,7 +711,7 @@
             },
             {
               "title": "7. Standalone display mode authentication flow check",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -585,20 +722,55 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 6582,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 17965,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/dashboard\" until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/dashboard\" until \"load\"\n============================================================\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:441:18",
+                        "location": {
+                          "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                          "column": 18,
+                          "line": 441
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 439 |\u001b[39m\n \u001b[90m 440 |\u001b[39m       \u001b[90m// In standalone display mode, verify navigation completes to /dashboard without breaking\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 441 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[32m'**/dashboard'\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m15000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 442 |\u001b[39m       expect(page\u001b[33m.\u001b[39murl())\u001b[33m.\u001b[39mtoContain(\u001b[32m'/dashboard'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 443 |\u001b[39m     }\n \u001b[90m 444 |\u001b[39m   })\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                            "column": 18,
+                            "line": 441
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/dashboard\" until \"load\"\n============================================================\n\n  439 |\n  440 |       // In standalone display mode, verify navigation completes to /dashboard without breaking\n> 441 |       await page.waitForURL('**/dashboard', { timeout: 15000 });\n      |                  ^\n  442 |       expect(page.url()).toContain('/dashboard');\n  443 |     }\n  444 |   });\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts:441:18"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-19T17:31:29.299Z",
+                      "startTime": "2026-10-23T19:30:15.567Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-79a3d-e-authentication-flow-check-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\pwa-mobile-twa-PWA-Android-79a3d-e-authentication-flow-check-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\pwa-mobile-twa.spec.ts",
+                        "column": 18,
+                        "line": 441
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "bbac90c6dbb1bf01ad34-05ad98f08fb55a664b7b",
@@ -609,15 +781,269 @@
           ]
         }
       ]
+    },
+    {
+      "title": "vbridge-audit-bots.spec.ts",
+      "file": "vbridge-audit-bots.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "VBridgeConnect Comprehensive Audit Bots Suite",
+          "file": "vbridge-audit-bots.spec.ts",
+          "line": 16,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Bot 1: Role-Based Access Control (RBAC) & Data Scoping Verifier (FR-092)",
+              "file": "vbridge-audit-bots.spec.ts",
+              "line": 69,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "enforces route-level access control: redirects INDUSTRY_PARTNER away from restricted routes",
+                  "ok": false,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 5,
+                          "parallelIndex": 0,
+                          "status": "failed",
+                          "duration": 0,
+                          "error": {
+                            "message": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n\n  17 // Global seed check before running tests\n  18 test.beforeAll(async () => {\n  19   // Ensure baseline seed data exists\n→ 20   const admin = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.",
+                            "stack": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n\n  17 // Global seed check before running tests\n  18 test.beforeAll(async () => {\n  19   // Ensure baseline seed data exists\n→ 20   const admin = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:19",
+                            "location": {
+                              "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts",
+                              "column": 37,
+                              "line": 20
+                            },
+                            "snippet": "\u001b[0m \u001b[90m 18 |\u001b[39m   test\u001b[33m.\u001b[39mbeforeAll(\u001b[36masync\u001b[39m () \u001b[33m=>\u001b[39m {\n \u001b[90m 19 |\u001b[39m     \u001b[90m// Ensure baseline seed data exists\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 20 |\u001b[39m     \u001b[36mconst\u001b[39m admin \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m prisma\u001b[33m.\u001b[39muser\u001b[33m.\u001b[39mfindFirst({ where\u001b[33m:\u001b[39m { email\u001b[33m:\u001b[39m \u001b[32m'admin@vbridge.com'\u001b[39m } })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                     \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 21 |\u001b[39m     \u001b[36mif\u001b[39m (\u001b[33m!\u001b[39madmin) {\n \u001b[90m 22 |\u001b[39m       \u001b[36mawait\u001b[39m prisma\u001b[33m.\u001b[39muser\u001b[33m.\u001b[39mcreate({\n \u001b[90m 23 |\u001b[39m         data\u001b[33m:\u001b[39m {\u001b[0m"
+                          },
+                          "errors": [
+                            {
+                              "location": {
+                                "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts",
+                                "column": 37,
+                                "line": 20
+                              },
+                              "message": "PrismaClientInitializationError: \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n\n  17 // Global seed check before running tests\n  18 test.beforeAll(async () => {\n  19   // Ensure baseline seed data exists\n→ 20   const admin = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n\n  18 |   test.beforeAll(async () => {\n  19 |     // Ensure baseline seed data exists\n> 20 |     const admin = await prisma.user.findFirst({ where: { email: 'admin@vbridge.com' } });\n     |                                     ^\n  21 |     if (!admin) {\n  22 |       await prisma.user.create({\n  23 |         data: {\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n    at ei.handleRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:242:13)\n    at ei.handleAndLogRequestError (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:174:12)\n    at ei.request (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\RequestHandler.ts:143:12)\n    at a (C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\node_modules\\@prisma\\client\\src\\runtime\\getPrismaClient.ts:833:24)\n    at C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:19"
+                            }
+                          ],
+                          "stdout": [
+                            {
+                              "text": "\u001b[31mprisma:error\u001b[39m \nInvalid `prisma.user.findFirst()` invocation in\nC:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts:20:37\n\n  17 // Global seed check before running tests\n  18 test.beforeAll(async () => {\n  19   // Ensure baseline seed data exists\n→ 20   const admin = await prisma.user.findFirst(\nCan't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`\n\nPlease make sure your database server is running at `aws-0-ap-south-1.pooler.supabase.com:6543`.\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-23T19:30:34.304Z",
+                          "annotations": [],
+                          "attachments": [
+                            {
+                              "name": "error-context",
+                              "contentType": "text/markdown",
+                              "path": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\test-results\\vbridge-audit-bots-VBridge-88d22-away-from-restricted-routes-chromium\\error-context.md"
+                            }
+                          ],
+                          "errorLocation": {
+                            "file": "C:\\Users\\Vedant\\Downloads\\V - Bridge connect\\next-app\\tests\\vbridge-audit-bots.spec.ts",
+                            "column": 37,
+                            "line": 20
+                          }
+                        }
+                      ],
+                      "status": "unexpected"
+                    }
+                  ],
+                  "id": "22b34690104c36e432ed-7413b70f55cbf9e25eb5",
+                  "file": "vbridge-audit-bots.spec.ts",
+                  "line": 75,
+                  "column": 9
+                },
+                {
+                  "title": "verifies data scoping: sensitive academic keys strictly absent in API and project payloads",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": -1,
+                          "parallelIndex": -1,
+                          "status": "skipped",
+                          "duration": 0,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-23T19:30:39.472Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "22b34690104c36e432ed-b7f953111249e961deab",
+                  "file": "vbridge-audit-bots.spec.ts",
+                  "line": 113,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Bot 2: Database Immutability & Data-Flow Auditor (FR-052 & FR-114/115)",
+              "file": "vbridge-audit-bots.spec.ts",
+              "line": 174,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "verifies immutable version incrementation and certificate DOM segregation",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": -1,
+                          "parallelIndex": -1,
+                          "status": "skipped",
+                          "duration": 0,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-23T19:30:39.472Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "22b34690104c36e432ed-8adb4bbe421406285ff6",
+                  "file": "vbridge-audit-bots.spec.ts",
+                  "line": 180,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Bot 3: TE Review-2 Evaluation Schema & Math Verification Bot",
+              "file": "vbridge-audit-bots.spec.ts",
+              "line": 377,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "validates schema boundaries and accurately verifies 43/50 marks computation in DB and Admin UI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": -1,
+                          "parallelIndex": -1,
+                          "status": "skipped",
+                          "duration": 0,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-23T19:30:39.472Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "22b34690104c36e432ed-3c294c46c4f288845e98",
+                  "file": "vbridge-audit-bots.spec.ts",
+                  "line": 387,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Bot 4: Network Waterfall, Avatar & Bundle Hygiene Bot",
+              "file": "vbridge-audit-bots.spec.ts",
+              "line": 518,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "enforces zero Dicebear calls, deferred xlsx chunk import, and session polling budget",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": -1,
+                          "parallelIndex": -1,
+                          "status": "skipped",
+                          "duration": 0,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-10-23T19:30:39.472Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "22b34690104c36e432ed-52cd87e0cfc4fec4f755",
+                  "file": "vbridge-audit-bots.spec.ts",
+                  "line": 524,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-19T17:29:49.350Z",
-    "duration": 112050.78,
-    "expected": 14,
-    "skipped": 0,
-    "unexpected": 0,
+    "startTime": "2026-10-23T19:29:24.323Z",
+    "duration": 75167.901,
+    "expected": 9,
+    "skipped": 4,
+    "unexpected": 6,
     "flaky": 0
   }
 }

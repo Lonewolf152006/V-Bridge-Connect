@@ -36,10 +36,34 @@ import {
   Link2,
 } from 'lucide-react';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
+import { WorkspaceSkeleton } from '@/components/common/WorkspaceSkeleton';
 import { formatDateTime, getMilestoneBadge, timeAgo } from '@lib/utils';
 import type { Team, Milestone, DeliverableType } from '@/types';
 import dynamic from 'next/dynamic';
-import { LiveMeetingRoom } from '@/components/meeting/LiveMeetingRoom';
+
+const LiveMeetingRoom = dynamic(
+  () => import('@/components/meeting/LiveMeetingRoom').then((m) => m.LiveMeetingRoom),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
+        Initializing Secure Live Meeting Room...
+      </div>
+    ),
+  }
+);
+
+const WorkspaceRepositoryTab = dynamic(
+  () => import('./WorkspaceRepositoryTab').then((m) => m.WorkspaceRepositoryTab),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
+        Loading Team Code Repository & Pull Requests...
+      </div>
+    ),
+  }
+);
 
 const EvaluationFormReview2 = dynamic(
   () => import('@components/evaluation/EvaluationFormReview2').then((m) => m.EvaluationFormReview2),
@@ -53,109 +77,15 @@ const EvaluationFormReview2 = dynamic(
   }
 );
 
-const DEFAULT_TEAMS: Team[] = [
-  {
-    id: 'team-mini-6',
-    name: 'Mini 6',
-    activityId: 'act-001',
-    projectTitle: 'Autonomous Telemetry & Vision Pipeline',
-    projectDescription: 'Edge AI processing for camera telemetry and sensor fusion.',
-    projectDomain: 'IoT & Embedded Systems',
-    projectSource: 'faculty_assigned',
-    projectStatus: 'in_progress',
-    industryMentorName: 'Rahul Kapoor (TechCorp Solutions)',
-    mentorId: 'user-sheetal-patil',
-    riskLevel: 'ON_TRACK',
-    members: [
-      {
-        userId: 'stu-001',
-        role: 'LEAD',
-        joinedAt: new Date().toISOString(),
-        user: {
-          id: 'stu-001',
-          name: 'Vedant Balvant Nikumbh',
-          email: 'vedant.nikumbh@vit.edu.in',
-          role: 'STUDENT',
-          department: 'Electronics and Computer Science',
-          avatarUrl: '',
-          isOnline: true,
-        },
-      },
-    ],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'team-mini-1',
-    name: 'Mini 1',
-    activityId: 'act-001',
-    projectTitle: 'Edge AI Vision for Industrial Safety Inspection',
-    projectDescription: 'Computer vision on Jetson for workplace compliance.',
-    projectDomain: 'AI & Computer Vision',
-    projectSource: 'industry_offered',
-    projectStatus: 'in_progress',
-    industryMentorName: 'Rahul Kapoor (TechCorp Solutions)',
-    mentorId: 'user-sheetal-patil',
-    riskLevel: 'ON_TRACK',
-    members: [
-      {
-        userId: 'stu-005',
-        role: 'LEAD',
-        joinedAt: new Date().toISOString(),
-        user: {
-          id: 'stu-005',
-          name: 'Harshavardhan Ravindra More',
-          email: 'harshavardhan.more@vit.edu.in',
-          role: 'STUDENT',
-          department: 'Electronics and Computer Science',
-          avatarUrl: '',
-          isOnline: true,
-        },
-      },
-    ],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'team-mini-8',
-    name: 'Mini 8',
-    activityId: 'act-001',
-    projectTitle: 'Microgrid Energy Optimization using IoT',
-    projectDescription: 'LoRaWAN energy monitoring and automated load shedding.',
-    projectDomain: 'IoT & Embedded Systems',
-    projectSource: 'faculty_assigned',
-    projectStatus: 'in_progress',
-    industryMentorName: 'Anita Rao (Infosys)',
-    mentorId: 'user-sheetal-patil',
-    riskLevel: 'ON_TRACK',
-    members: [
-      {
-        userId: 'stu-009',
-        role: 'LEAD',
-        joinedAt: new Date().toISOString(),
-        user: {
-          id: 'stu-009',
-          name: 'Manasi Sachin Pawar',
-          email: 'manasi.pawar@vit.edu.in',
-          role: 'STUDENT',
-          department: 'Electronics and Computer Science',
-          avatarUrl: '',
-          isOnline: true,
-        },
-      },
-    ],
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const DEFAULT_MILESTONES: Milestone[] = [];
-
 export const WorkspaceHub: React.FC = () => {
   const params = useParams();
   const teamId = params?.teamId as string | undefined;
   const { currentUser } = useAppStore();
   const [activeTab, setActiveTab] = useState<string>('overview');
 
-  const [teamsState, setTeamsState] = useState<Team[]>(DEFAULT_TEAMS);
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || 'team-mini-6');
+  const [teamsState, setTeamsState] = useState<Team[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState<boolean>(true);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId || '');
 
   // Milestones State (clean and free of fake fabricated milestones)
   const [milestonesState, setMilestonesState] = useState<Milestone[]>([]);
@@ -255,6 +185,8 @@ export const WorkspaceHub: React.FC = () => {
         }
       } catch (err) {
         console.warn('Failed to fetch workspace context:', err);
+      } finally {
+        setIsLoadingTeams(false);
       }
     }
     fetchLiveContext();
@@ -267,14 +199,13 @@ export const WorkspaceHub: React.FC = () => {
     teamsState.find((t) => t.id === teamId) ||
     teamsState.find((t) => teamId && t.name.toLowerCase() === normalizeSlug(teamId)) ||
     teamsState.find((t) => selectedTeamId && t.name.toLowerCase() === normalizeSlug(selectedTeamId)) ||
-    teamsState[0] ||
-    DEFAULT_TEAMS[0];
+    teamsState[0];
 
   const currentActivity = {
-    id: currentTeam.activityId || 'act-001',
-    title: (currentTeam as any).activityTitle || `${currentTeam.name} Capstone Track`,
+    id: currentTeam?.activityId || 'act-001',
+    title: (currentTeam as any)?.activityTitle || `${currentTeam?.name || 'Capstone'} Track`,
     department: 'Electronics and Computer Science',
-    description: currentTeam.projectDescription || 'Autonomous Capstone Mini-Project under Faculty Mentorship',
+    description: currentTeam?.projectDescription || 'Autonomous Capstone Mini-Project under Faculty Mentorship',
     category: 'CAPSTONE',
   };
   const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
@@ -288,11 +219,11 @@ export const WorkspaceHub: React.FC = () => {
 
   // Assign Project Modal State for Workspace Hub
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [hubProjectTitle, setHubProjectTitle] = useState(currentTeam.projectTitle || '');
-  const [hubProjectDomain, setHubProjectDomain] = useState(currentTeam.projectDomain || 'IoT & Embedded Systems');
-  const [hubProjectDesc, setHubProjectDesc] = useState(currentTeam.projectDescription || '');
+  const [hubProjectTitle, setHubProjectTitle] = useState(currentTeam?.projectTitle || '');
+  const [hubProjectDomain, setHubProjectDomain] = useState(currentTeam?.projectDomain || 'IoT & Embedded Systems');
+  const [hubProjectDesc, setHubProjectDesc] = useState(currentTeam?.projectDescription || '');
   const [hubIndustryMentor, setHubIndustryMentor] = useState(
-    currentTeam.industryMentorName ||
+    currentTeam?.industryMentorName ||
       (currentUser.role === 'INDUSTRY_PARTNER'
         ? `${currentUser.name || 'Rahul Kapoor'} (TechCorp Solutions)`
         : 'Rahul Kapoor (TechCorp Solutions)')
@@ -301,6 +232,7 @@ export const WorkspaceHub: React.FC = () => {
   const [, setTeamRefreshCount] = useState(0);
 
   const handleOpenAssignModal = () => {
+    if (!currentTeam) return;
     setHubProjectTitle(currentTeam.projectTitle || '');
     setHubProjectDomain(currentTeam.projectDomain || 'IoT & Embedded Systems');
     setHubProjectDesc(currentTeam.projectDescription || '');
@@ -513,9 +445,26 @@ export const WorkspaceHub: React.FC = () => {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'milestones', label: 'Milestones & Deliverables' },
+    { id: 'repository', label: 'Repository & PRs' },
     { id: 'meetings', label: 'Mentor Sync & Meet' },
     { id: 'review2', label: 'TE Review-2 Form' },
   ];
+
+  if (isLoadingTeams) {
+    return <WorkspaceSkeleton />;
+  }
+
+  if (!currentTeam) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+        <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <h2 className="text-base font-bold text-slate-800">No Team Workspace Found</h2>
+        <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+          No team records were found for your account in this activity cohort. Please contact your coordinator or project mentor to be assigned to a team.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -1246,6 +1195,11 @@ export const WorkspaceHub: React.FC = () => {
           currentTeam={currentTeam}
           allTeams={teamsState}
         />
+      )}
+
+      {/* ─── TAB 5: REPOSITORY & PULL REQUESTS ─── */}
+      {activeTab === 'repository' && (
+        <WorkspaceRepositoryTab teamId={currentTeam.id} />
       )}
 
       {/* ─── ADD MILESTONE MODAL (Faculty Mentor & Industry Expert) ─── */}

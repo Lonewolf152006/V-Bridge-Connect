@@ -1,25 +1,61 @@
 // POST /api/v1/certificates — Upload self-reported or issue platform certificate
-// GET /api/v1/certificates — List certificates
+// GET /api/v1/certificates — List certificates with clamped pagination
+// Strictly idempotent with Phase B unified error envelope & RBAC
 
-import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import { certificateService } from '@/lib/modules/certificate/certificate.service';
-import { requireAuth } from '@/lib/auth/rbac';
-import { AuthError } from '@/lib/auth/jwt';
 
-export async function POST(request: NextRequest) {
-  try {
-    const user = await requireAuth(request, 'student', 'coordinator', 'super_admin');
-    const body = await request.json();
+const postCertificateSchema = z
+  .object({
+    type: z.enum(['platform_issued', 'self_reported']).optional().default('self_reported'),
+    activityId: z.string().optional(),
+    studentId: z.string().optional(),
+    activityTitle: z.string().optional(),
+    externalProvider: z.string().optional(),
+    externalFileUrl: z.string().url().optional(),
+    issueDate: z.string().optional(),
+    expiryDate: z.string().optional(),
+    credentialId: z.string().optional(),
+    verificationUrl: z.string().url().optional(),
+  })
+  .strict();
 
+const getCertificatesQuerySchema = z
+  .object({
+    activityId: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 20, 50)),
+  })
+  .strict();
+
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['student', 'coordinator', 'super_admin'],
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: postCertificateSchema,
+  },
+  async ({ body, user, requestId }) => {
     if (body.type === 'platform_issued') {
-      // Platform issuance requires coordinator or super_admin
       if (!['coordinator', 'super_admin'].includes(user.role)) {
-        throw new AuthError('Only coordinators can issue platform certificates', 403);
+        return createErrorResponse(
+          'FORBIDDEN',
+          'Only coordinators and administrators can issue platform certificates',
+          403,
+          requestId
+        );
       }
       if (!body.activityId || !body.studentId) {
-        return Response.json(
-          { error: 'activityId and studentId are required for platform certificates' },
-          { status: 400 }
+        return createErrorResponse(
+          'VALIDATION_ERROR',
+          'activityId and studentId are required for platform certificates',
+          422,
+          requestId
         );
       }
       const cert = await certificateService.issuePlatformCertificate(
@@ -27,46 +63,57 @@ export async function POST(request: NextRequest) {
         body.studentId,
         user.userId
       );
-      return Response.json({ data: cert }, { status: 201 });
+      return createSuccessResponse(cert, { status: 201, requestId });
     }
 
     // Default: Self-reported certificate (FR-112, FR-113)
     if (!body.activityTitle || !body.externalProvider || !body.externalFileUrl) {
-      return Response.json(
-        { error: 'activityTitle, externalProvider, and externalFileUrl are required' },
-        { status: 400 }
+      return createErrorResponse(
+        'VALIDATION_ERROR',
+        'activityTitle, externalProvider, and externalFileUrl are required for self-reported certificates',
+        422,
+        requestId
       );
     }
 
-    const cert = await certificateService.uploadSelfReported(body, user);
-    return Response.json({ data: cert }, { status: 201 });
-  } catch (error: any) {
-    if (error instanceof AuthError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    return Response.json({ error: error.message || 'Failed to process certificate' }, { status: 400 });
+    const cert = await certificateService.uploadSelfReported(body as any, user);
+    return createSuccessResponse(cert, { status: 201, requestId });
   }
-}
+);
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await requireAuth(request);
-    const { searchParams } = new URL(request.url);
-    const activityId = searchParams.get('activityId');
+export const GET = apiRoute(
+  {
+    requireAuth: true,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getCertificatesQuerySchema,
+  },
+  async ({ query, user, requestId }) => {
+    const limit = query.limit || 20;
 
-    if (activityId) {
-      // Coordinator view: official platform-issued certificates only (FR-115)
-      const officialCerts = await certificateService.listOfficialByActivity(activityId, user);
-      return Response.json({ data: officialCerts });
+    if (query.activityId) {
+      const officialCerts = await certificateService.listOfficialByActivity(query.activityId, user);
+      const paginated = officialCerts.slice(0, limit);
+      return createSuccessResponse(paginated, {
+        requestId,
+        pagination: {
+          limit,
+          hasMore: officialCerts.length > limit,
+          nextCursor: officialCerts.length > limit ? paginated[paginated.length - 1]?.id : null,
+          total: officialCerts.length,
+        },
+      });
     }
 
-    // Student view: all their certificates (FR-117)
     const myCerts = await certificateService.listMyCertificates(user);
-    return Response.json({ data: myCerts });
-  } catch (error: any) {
-    if (error instanceof AuthError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    return Response.json({ error: error.message || 'Failed to list certificates' }, { status: 500 });
+    const paginated = myCerts.slice(0, limit);
+    return createSuccessResponse(paginated, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore: myCerts.length > limit,
+        nextCursor: myCerts.length > limit ? paginated[paginated.length - 1]?.id : null,
+        total: myCerts.length,
+      },
+    });
   }
-}
+);

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Image from 'next/image';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { Modal } from '@components/common/Modal';
@@ -909,10 +910,13 @@ export const CertificateHub: React.FC = () => {
                     previewDocCert.externalFileUrl?.includes('unsplash') ||
                     previewDocCert.externalFileUrl?.match(/\.(jpeg|jpg|png|webp)($|\?)/i)) && (
                     <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 max-h-72 flex items-center justify-center bg-white p-1">
-                      <img
-                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
+                      <Image
+                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl || ''}
                         alt={previewDocCert.activityTitle}
-                        className="max-h-64 object-contain rounded-lg"
+                        width={500}
+                        height={300}
+                        unoptimized
+                        className="max-h-64 w-auto object-contain rounded-lg"
                       />
                     </div>
                   )}

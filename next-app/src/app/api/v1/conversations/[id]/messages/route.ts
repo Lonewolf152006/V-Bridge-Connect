@@ -1,54 +1,61 @@
 // GET /api/v1/conversations/[id]/messages — Get messages with window filtering (FR-123, QA-07)
 // POST /api/v1/conversations/[id]/messages — Send message (FR-120, FR-126)
+// Strictly idempotent with Phase B unified error envelope & RBAC
 
-import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse } from '@/lib/api/envelope';
 import { messagingService } from '@/lib/modules/messaging/messaging.service';
-import { MessagingAuthorizationError } from '@/lib/modules/messaging/messaging.relationship';
-import { requireAuth } from '@/lib/auth/rbac';
-import { AuthError } from '@/lib/auth/jwt';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await requireAuth(request);
-    const { id } = await params;
-    const messages = await messagingService.getMessages(id, user);
-    return Response.json({ data: messages });
-  } catch (error: any) {
-    if (error instanceof AuthError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    if (error instanceof MessagingAuthorizationError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    return Response.json({ error: error.message || 'Failed to fetch messages' }, { status: 500 });
+const sendMessageSchema = z
+  .object({
+    content: z.string().min(1, 'content is required').max(10000),
+    attachmentUrl: z.string().url().optional(),
+    attachmentName: z.string().max(255).optional(),
+  })
+  .strict();
+
+const getMessagesQuerySchema = z
+  .object({
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
+
+export const GET = apiRoute<any, any, { id: string }>(
+  {
+    requireAuth: true,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getMessagesQuerySchema,
+  },
+  async ({ params, query, user, requestId }) => {
+    const limit = query.limit || 50;
+    const messages = await messagingService.getMessages(params.id, user);
+    const paginated = messages.slice(0, limit);
+
+    return createSuccessResponse(paginated, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore: messages.length > limit,
+        nextCursor: messages.length > limit ? paginated[paginated.length - 1]?.id : null,
+        total: messages.length,
+      },
+    });
   }
-}
+);
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await requireAuth(request);
-    const { id } = await params;
-    const body = await request.json();
-
-    if (!body.content) {
-      return Response.json({ error: 'content is required' }, { status: 400 });
-    }
-
-    const message = await messagingService.sendMessage(id, body, user);
-    return Response.json({ data: message }, { status: 201 });
-  } catch (error: any) {
-    if (error instanceof AuthError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    if (error instanceof MessagingAuthorizationError) {
-      return Response.json({ error: error.message }, { status: error.statusCode });
-    }
-    return Response.json({ error: error.message || 'Failed to send message' }, { status: 400 });
+export const POST = apiRoute<{ content: string; attachmentUrl?: string; attachmentName?: string }, any, { id: string }>(
+  {
+    requireAuth: true,
+    idempotent: true,
+    rateLimit: { limit: 60, windowMs: 60000 },
+    bodySchema: sendMessageSchema,
+  },
+  async ({ params, body, user, requestId }) => {
+    const message = await messagingService.sendMessage(params.id, body, user);
+    return createSuccessResponse(message, { status: 201, requestId });
   }
-}
+);

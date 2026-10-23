@@ -1,50 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type { User, UserRole, Notification } from '@/types';
-
-export const MOCK_USERS: Record<UserRole, User> = {
-  STUDENT: {
-    id: 'user-vedant-nikumbh',
-    name: 'Vedant Balvant Nikumbh',
-    email: 'vedant.nikumbh@vit.edu.in',
-    role: 'STUDENT',
-    department: 'Electronics and Computer Science',
-    avatarUrl: '',
-    institutionalId: '24108B0021',
-    isOnline: true,
-  },
-  COORDINATOR: {
-    id: 'user-sheetal-patil',
-    name: 'Dr. Sheetal Patil',
-    email: 'sheetal.patil@vit.edu.in',
-    role: 'COORDINATOR',
-    department: 'Electronics and Computer Science',
-    avatarUrl: '',
-    institutionalId: 'FAC-SPATIL-2026',
-    isOnline: true,
-  },
-  INDUSTRY_PARTNER: {
-    id: 'user-partner-001',
-    name: 'Rahul Kapoor (Industry Expert)',
-    email: 'expert@industry.com',
-    role: 'INDUSTRY_PARTNER',
-    department: 'TechCorp Solutions / Industry Partner',
-    avatarUrl: '',
-    institutionalId: 'EXP-2026-001',
-    isOnline: true,
-  },
-  SUPER_ADMIN: {
-    id: 'user-admin-001',
-    name: 'Dean Rita Sharma (Super Admin)',
-    email: 'admin@vbridge.com',
-    role: 'SUPER_ADMIN',
-    department: 'Central Institutional Administration',
-    avatarUrl: '',
-    institutionalId: 'ADMIN-2026-001',
-    isOnline: true,
-  },
-};
+import type { User, Notification } from '@/types';
 
 export interface ActiveWorkspaceInfo {
   teamId?: string;
@@ -64,7 +21,6 @@ interface AppState {
   viewportMode: 'desktop' | 'mobile' | 'tablet';
 
   // Actions
-  setRole: (role: UserRole) => void;
   setCurrentUser: (user: User) => void;
   setActiveWorkspace: (ws: ActiveWorkspaceInfo | null) => void;
   setViewportMode: (mode: 'desktop' | 'mobile' | 'tablet') => void;
@@ -92,7 +48,6 @@ export const useAppStore = create<AppState>((set) => ({
   viewportMode: 'desktop',
   notifications: [],
 
-  setRole: (role) => set({ currentUser: MOCK_USERS[role] }),
   setCurrentUser: (user) => set({ currentUser: user }),
   setActiveWorkspace: (ws) => set({ activeWorkspace: ws }),
   setViewportMode: (mode) => set({ viewportMode: mode }),

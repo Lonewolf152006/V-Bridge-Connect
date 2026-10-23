@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { signIn as nextAuthSignIn } from 'next-auth/react';
-import { useAppStore, MOCK_USERS } from '@store/appStore';
+import { useAppStore } from '@store/appStore';
 import type { UserRole } from '@/types';
 import { Button } from '@components/common/Button';
 import { Card } from '@components/common/Card';
@@ -24,7 +24,7 @@ const GitHubIcon: React.FC = () => (
     <path
       fillRule="evenodd"
       clipRule="evenodd"
-      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.666 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
     />
   </svg>
 );
@@ -53,7 +53,6 @@ const GoogleIcon: React.FC = () => (
 type LoginTab = 'INSTITUTIONAL' | 'SUPER_ADMIN' | 'INDUSTRY_PARTNER';
 
 export const LoginScreen: React.FC = () => {
-  const { setRole, setCurrentUser } = useAppStore();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<LoginTab>('INSTITUTIONAL');
@@ -72,77 +71,62 @@ export const LoginScreen: React.FC = () => {
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      setErrorMessage('Please enter your email address.');
+      setErrorMessage('Please enter your institutional email address.');
       setLoading(false);
       return;
     }
 
-    // Determine target persona role and destination route
-    let targetRole: UserRole = 'STUDENT';
-    let targetRoute = '/dashboard';
-
-    if (cleanEmail.includes('admin') || cleanEmail.includes('dean') || cleanEmail.includes('super')) {
-      targetRole = 'SUPER_ADMIN';
-      targetRoute = '/admin/reports';
-    } else if (cleanEmail.includes('sheetal') || cleanEmail.includes('coord') || cleanEmail.includes('mentor') || cleanEmail.includes('faculty') || cleanEmail.includes('prof')) {
-      targetRole = 'COORDINATOR';
-      targetRoute = '/mentor/dashboard';
-    } else if (cleanEmail.includes('expert') || cleanEmail.includes('techcorp') || cleanEmail.includes('corporate') || cleanEmail.includes('partner') || cleanEmail.includes('industry')) {
-      targetRole = 'INDUSTRY_PARTNER';
-      targetRoute = '/dashboard';
-    } else {
-      targetRole = 'STUDENT';
-      targetRoute = '/dashboard';
+    if (!password) {
+      setErrorMessage('Please enter your password.');
+      setLoading(false);
+      return;
     }
 
-    // 1. Set Edge Middleware bypass demo cookie so Next.js middleware immediately allows this user
     try {
-      document.cookie = `vbridge_demo_user=${encodeURIComponent(
-        JSON.stringify({ email: cleanEmail, role: targetRole })
-      )}; path=/; max-age=86400; SameSite=Lax`;
-    } catch (cookieErr) {
-      console.warn('Cookie set error:', cookieErr);
-    }
-
-    // 2. Sync Zustand App Store state
-    setRole(targetRole);
-    const baseMock = MOCK_USERS[targetRole];
-    const parts = cleanEmail.split('@');
-    const cleanName = (parts[0] || 'User')
-      .split('.')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
-
-    setCurrentUser({
-      ...baseMock,
-      id: `user-${parts[0].replace(/[^a-zA-Z0-9]/g, '-')}`,
-      email: cleanEmail,
-      name: cleanName || baseMock.name,
-      role: targetRole,
-    });
-
-    // 3. Authenticate with NextAuth in background (non-blocking)
-    try {
-      nextAuthSignIn('credentials', {
+      const signInResult = await nextAuthSignIn('credentials', {
         email: cleanEmail,
-        password: password || 'Test1234!',
+        password,
         redirect: false,
-      }).catch((e) => console.warn('NextAuth background sign-in warning:', e));
+      });
 
-      // If industry partner provided a faculty invite code, auto-link to faculty cohort
-      if (targetRole === 'INDUSTRY_PARTNER' && facultyCode.trim()) {
-        fetch('/api/v1/mentor/join-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: facultyCode.trim() }),
-        }).catch((joinErr) => console.warn('[Login] Auto-join with faculty code error:', joinErr));
+      if (signInResult?.error) {
+        setErrorMessage('Invalid institutional credentials. Please check your email and password.');
+        setLoading(false);
+        return;
       }
-    } catch (authErr) {
-      console.warn('NextAuth background sign-in warning:', authErr);
-    }
 
-    // 4. Smoothly route user to their role dashboard
-    window.location.href = targetRoute;
+      // If faculty invite code was supplied, link to cohort
+      if (facultyCode.trim()) {
+        try {
+          await fetch('/api/v1/mentor/join-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: facultyCode.trim() }),
+          });
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      // Query real session to determine role-based destination
+      const sessionRes = await fetch('/api/auth/session');
+      const sessionData = await sessionRes.json();
+      const role = sessionData?.user?.role?.toLowerCase();
+
+      let targetRoute = '/dashboard';
+      if (role === 'super_admin') {
+        targetRoute = '/admin/reports';
+      } else if (role === 'coordinator') {
+        targetRoute = '/mentor/dashboard';
+      } else {
+        targetRoute = '/dashboard';
+      }
+
+      window.location.href = targetRoute;
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
+      setLoading(false);
+    }
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
@@ -241,10 +225,7 @@ export const LoginScreen: React.FC = () => {
                   <span>Microsoft VIT Mail & Password</span>
                 </div>
                 Sign in with your official <code className="text-indigo-600 font-mono font-bold">@vit.edu.in</code> student
-                or faculty mentor address. Teams and cohorts are automatically connected upon login.
-                <div className="mt-1.5 pt-1.5 border-t border-indigo-100 text-[11px] text-indigo-800">
-                  👩‍🏫 <strong>Mentor Login:</strong> Use <code className="font-mono font-bold">sheetal.patil@vit.edu.in</code> | Pwd: <code className="font-mono font-bold">Test1234!</code>
-                </div>
+                or faculty mentor address. Teams and cohorts are securely loaded upon authentication.
               </div>
 
               <div>
@@ -306,11 +287,7 @@ export const LoginScreen: React.FC = () => {
                   <ShieldCheck className="w-4 h-4 text-purple-600" />
                   <span>Central Superadmin Console</span>
                 </div>
-                Platform Governance & Accreditation oversight. Access directory management, role controls, and system logs.
-                <div className="mt-2 pt-2 border-t border-purple-200/80 font-mono text-[11px] text-purple-800 flex flex-wrap gap-x-3 gap-y-1">
-                  <span><strong>Login:</strong> admin@vbridge.com</span>
-                  <span><strong>Password:</strong> admin123</span>
-                </div>
+                Platform Governance & Accreditation oversight. Access directory management, role controls, and system audit logs with authorized credentials.
               </div>
 
               <div>
@@ -374,10 +351,6 @@ export const LoginScreen: React.FC = () => {
                   <span>Industry Expert & Corporate Portal</span>
                 </div>
                 External co-mentors and enterprise partners guide capstone groups and offer industry opportunities.
-                <div className="mt-2 pt-2 border-t border-amber-200 font-mono text-[11px] text-amber-800 flex flex-wrap gap-x-3 gap-y-1">
-                  <span><strong>Login:</strong> expert@industry.com</span>
-                  <span><strong>Password:</strong> expert123</span>
-                </div>
               </div>
 
               {/* External OAuth Buttons */}

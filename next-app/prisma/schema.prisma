@@ -141,6 +141,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   auditEvents         AuditEvent[]     @relation("AuditActor")
   conversationParticipations ConversationParticipant[]
+  pullRequests        TeamPullRequest[]
 
   @@map("users")
 }
@@ -229,6 +230,9 @@ model Activity {
   proposals     ProjectProposal[]
   projectOfferings ProjectOffering[]
 
+  @@index([departmentId, status])
+  @@index([ownerId])
+  @@index([status])
   @@map("activities")
 }
 
@@ -257,6 +261,9 @@ model Application {
   team            Team?    @relation(fields: [teamId], references: [id])
 
   @@unique([activityId, applicantId])
+  @@index([activityId, status])
+  @@index([applicantId])
+  @@index([teamId])
   @@map("applications")
 }
 
@@ -291,7 +298,12 @@ model Team {
   rosterInvitations RosterInvitation[]
   proposals       ProjectProposal[]
   assignedOffering ProjectOffering?
+  pullRequests    TeamPullRequest[]
 
+  @@index([activityId])
+  @@index([mentorId])
+  @@index([industryMentorId])
+  @@index([riskStatus])
   @@map("teams")
 }
 
@@ -311,6 +323,8 @@ model TeamMembership {
   user        User @relation(fields: [userId], references: [id])
 
   @@unique([teamId, userId, removedAt])
+  @@index([userId, removedAt])
+  @@index([teamId, role])
   @@map("team_memberships")
 }
 
@@ -340,6 +354,9 @@ model Milestone {
   team                Team?        @relation(fields: [teamId], references: [id])
   submissions         Submission[]
 
+  @@index([activityId])
+  @@index([teamId, status])
+  @@index([dueDate])
   @@map("milestones")
 }
 
@@ -378,6 +395,10 @@ model Submission {
 
   // FR-052: Immutable — unique version per milestone
   @@unique([milestoneId, version])
+  @@index([milestoneId])
+  @@index([teamId, status])
+  @@index([submittedById])
+  @@index([reviewerId])
   @@map("submissions")
 }
 
@@ -408,6 +429,9 @@ model Certificate {
   activity          Activity? @relation(fields: [activityId], references: [id])
   revokedBy         User?     @relation("CertificateRevoker", fields: [revokedById], references: [id])
 
+  @@index([studentId, status])
+  @@index([activityId])
+  @@index([type, status])
   @@map("certificates")
 }
 
@@ -428,6 +452,8 @@ model Conversation {
   participants   ConversationParticipant[]
   messages       Message[]
 
+  @@index([teamId])
+  @@index([activityId])
   @@map("conversations")
 }
 
@@ -444,6 +470,7 @@ model ConversationParticipant {
   user             User         @relation(fields: [userId], references: [id])
 
   @@unique([conversationId, userId, removedAt])
+  @@index([userId, removedAt])
   @@map("conversation_participants")
 }
 
@@ -461,6 +488,8 @@ model Message {
   sender           User         @relation(fields: [senderId], references: [id])
 
   // Messages are never deleted (FR-123)
+  @@index([conversationId, createdAt])
+  @@index([senderId])
   @@map("messages")
 }
 
@@ -481,6 +510,7 @@ model Notification {
 
   user        User @relation(fields: [userId], references: [id])
 
+  @@index([userId, isRead, createdAt])
   @@map("notifications")
 }
 
@@ -516,6 +546,8 @@ model AuditEvent {
   actor       User?    @relation("AuditActor", fields: [actorId], references: [id])
 
   // Audit events are immutable — no updatedAt, no delete
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
   @@map("audit_events")
 }
 
@@ -590,5 +622,53 @@ model ProjectOffering {
   assignedTeam    Team?     @relation(fields: [assignedTeamId], references: [id])
 
   @@map("project_offerings")
+}
+
+model TeamPullRequest {
+  id            Int      @id @default(autoincrement())
+  teamId        String   @map("team_id") @db.Uuid
+  title         String
+  branch        String
+  targetBranch  String   @default("main") @map("target_branch")
+  authorId      String?  @map("author_id") @db.Uuid
+  authorName    String   @map("author_name")
+  authorAvatar  String?  @map("author_avatar")
+  status        String   @default("OPEN")
+  commentsCount Int      @default(0) @map("comments_count")
+  reviewers     Json     @default("[]")
+  labels        Json     @default("[]")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author        User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@map("team_pull_requests")
+}
+
+// ─── Phase D: Scale Safety & Stateless Storage ──────────────────────────────
+
+model IdempotencyRecord {
+  key        String   @id
+  status     Int
+  response   Json
+  inFlight   Boolean  @default(false) @map("in_flight")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+model RateLimitRecord {
+  key       String   @id
+  count     Int      @default(1)
+  resetAt   DateTime @map("reset_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([resetAt])
+  @@map("rate_limit_records")
 }
 

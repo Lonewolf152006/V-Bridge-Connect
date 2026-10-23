@@ -31,16 +31,52 @@ export function listResponse(
   });
 }
 
-export function errorResponse(message: string, status: number = 400) {
+export function errorResponse(
+  message: string,
+  status: number = 400,
+  details: any[] = []
+) {
+  const code =
+    status === 401
+      ? 'UNAUTHORIZED'
+      : status === 403
+      ? 'FORBIDDEN'
+      : status === 404
+      ? 'NOT_FOUND'
+      : status === 409
+      ? 'CONFLICT'
+      : status === 422
+      ? 'VALIDATION_ERROR'
+      : status === 429
+      ? 'RATE_LIMITED'
+      : status >= 500
+      ? 'INTERNAL_SERVER_ERROR'
+      : 'BAD_REQUEST';
+
+  const requestId = crypto.randomUUID();
   return NextResponse.json(
-    { success: false, error: message },
-    { status }
+    {
+      error: {
+        code,
+        message,
+        details,
+        requestId,
+      },
+    },
+    {
+      status,
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-Request-Id': requestId,
+      },
+    }
   );
 }
 
 /**
  * Standard error handler for API routes.
- * Maps known error types to appropriate HTTP status codes.
+ * Maps known error types to appropriate HTTP status codes and unified envelope.
  */
 export function handleApiError(error: unknown) {
   if (error instanceof AuthError) {
@@ -54,16 +90,11 @@ export function handleApiError(error: unknown) {
       error.name === 'MilestoneTransitionError' ||
       error.name === 'SubmissionTransitionError' ||
       error.name === 'ApplicationTransitionError' ||
-      error.name === 'CertificateTransitionError')
+      error.name === 'CertificateTransitionError' ||
+      error.message.includes('Invalid transition') ||
+      error.message.includes('Cannot transition'))
   ) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'invalid_transition',
-        message: error.message,
-      },
-      { status: 409 }
-    );
+    return errorResponse(error.message, 409);
   }
 
   console.error('[API Error]', error);

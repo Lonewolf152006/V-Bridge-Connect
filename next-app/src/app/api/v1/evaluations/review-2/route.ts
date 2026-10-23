@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/db/prisma';
 import { getOptionalSession } from '@/lib/auth/get-session';
+import { authenticateRequest } from '@/lib/auth/jwt';
 
 export interface Review2Evaluation {
   id: string;
@@ -157,9 +158,41 @@ async function saveStoredEvaluations(evals: Review2Evaluation[]): Promise<void> 
   }
 }
 
-// GET /api/v1/evaluations/review-2
+// GET /api/v1/evaluations/review-2 (QA-11, FR-092: Scope boundary enforcement)
 export async function GET(req: NextRequest) {
   try {
+    let user;
+    try {
+      user = await authenticateRequest(req);
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required to access evaluation grades.',
+            details: [],
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    // QA-11 & FR-092: Industry partners strictly barred from internal student grades & remarks
+    if (user.role === 'industry_partner') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Industry partners are strictly barred from querying student grades or private faculty evaluation remarks (QA-11, FR-092).',
+            details: [],
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get('teamId');
 
@@ -191,7 +224,37 @@ export async function GET(req: NextRequest) {
 // POST /api/v1/evaluations/review-2
 export async function POST(req: NextRequest) {
   try {
-    const session = await getOptionalSession();
+    let user;
+    try {
+      user = await authenticateRequest(req);
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required to submit evaluation records.',
+            details: [],
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    if (user.role !== 'coordinator' && user.role !== 'super_admin') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Only faculty evaluators, coordinators, and administrators can submit Review 2 evaluations.',
+            details: [],
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -308,8 +371,8 @@ export async function POST(req: NextRequest) {
       literatureReviewMarks,
       analysisMarks,
       totalMarks,
-      submittedByEmail: body.evaluatorEmail || session?.email || 'sheetal.patil@vit.edu.in',
-      submittedByName: body.evaluatorName || session?.name || 'Dr. Sheetal Patil',
+      submittedByEmail: body.evaluatorEmail || user?.email || 'sheetal.patil@vit.edu.in',
+      submittedByName: body.evaluatorName || (user as any)?.name || 'Dr. Sheetal Patil',
       submittedAt: new Date().toISOString(),
     };
 

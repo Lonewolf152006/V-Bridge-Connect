@@ -1,0 +1,16 @@
+{
+  "name": "v-bridge-connect-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run --prefix next-app dev",
+    "build": "npm run --prefix next-app build",
+    "start": "npm run --prefix next-app start",
+    "test:scale": "npm run --prefix next-app test:scale",
+    "test:perf": "npm run --prefix next-app test:perf",
+    "test:contracts": "npm run --prefix next-app test:contracts",
+    "test:security": "npm run --prefix next-app test:security",
+    "test:journeys": "npm run --prefix next-app test:journeys",
+    "test:all": "npm run --prefix next-app test:all"
+  }
+}

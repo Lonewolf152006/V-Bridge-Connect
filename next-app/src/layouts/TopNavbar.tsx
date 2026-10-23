@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useAppStore, MOCK_USERS } from '@/store/appStore';
-import { Bell, Search, Menu, Building2, Check, ExternalLink, ChevronDown, ShieldCheck, LogOut, Sparkles, BarChart3 } from 'lucide-react';
+import { useState } from 'react';
+import { useAppStore } from '@/store/appStore';
+import { Bell, Search, Menu, Building2, Check, ExternalLink, ChevronDown, ShieldCheck, LogOut, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { roleLabel, timeAgo, cn } from '@/lib/utils';
@@ -19,8 +19,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
   const router = useRouter();
   const {
     currentUser,
-    setRole,
-    setCurrentUser,
     notifications,
     unreadCount,
     markAllRead,
@@ -29,34 +27,13 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const handleRoleSwitch = (newRole: UserRole) => {
-    setRole(newRole);
-    const targetUser = MOCK_USERS[newRole];
-    setCurrentUser(targetUser);
-    try {
-      document.cookie = `vbridge_demo_user=${encodeURIComponent(
-        JSON.stringify({ email: targetUser.email, role: newRole })
-      )}; path=/; max-age=86400; SameSite=Lax`;
-    } catch (e) {
-      console.warn('Cookie set error:', e);
-    }
-    setShowUserMenu(false);
-    if (newRole === 'SUPER_ADMIN') {
-      router.push('/admin/reports');
-    } else if (newRole === 'COORDINATOR') {
-      router.push('/coordinator/dashboard');
-    } else {
-      router.push('/dashboard');
-    }
-  };
-
   const handleLogout = async () => {
     try {
-      document.cookie = 'vbridge_demo_user=; path=/; max-age=0; SameSite=Lax';
       await nextAuthSignOut({ redirect: false });
     } catch {}
     router.push('/login');
   };
+
 
   return (
     <header className={cn(
@@ -234,62 +211,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ isSimulation = false }) =>
                 </div>
               </div>
 
-              <div className="py-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-indigo-500" />
-                  <span>Switch Role / Persona</span>
-                </div>
-                <div className="space-y-0.5 text-xs">
-                  <button
-                    onClick={() => handleRoleSwitch('COORDINATOR')}
-                    className={cn(
-                      "w-full px-3 py-2 rounded-xl text-left font-medium transition-all flex items-center justify-between",
-                      currentUser.role === 'COORDINATOR'
-                        ? "bg-indigo-50 text-indigo-800 font-bold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>👩‍🏫 Faculty Mentor / Coordinator</span>
-                    {currentUser.role === 'COORDINATOR' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                  </button>
-                  <button
-                    onClick={() => handleRoleSwitch('STUDENT')}
-                    className={cn(
-                      "w-full px-3 py-2 rounded-xl text-left font-medium transition-all flex items-center justify-between",
-                      currentUser.role === 'STUDENT'
-                        ? "bg-indigo-50 text-indigo-800 font-bold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>🎓 Student Lead</span>
-                    {currentUser.role === 'STUDENT' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                  </button>
-                  <button
-                    onClick={() => handleRoleSwitch('SUPER_ADMIN')}
-                    className={cn(
-                      "w-full px-3 py-2 rounded-xl text-left font-medium transition-all flex items-center justify-between",
-                      currentUser.role === 'SUPER_ADMIN'
-                        ? "bg-purple-50 text-purple-800 font-bold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>👑 Super Administrator</span>
-                    {currentUser.role === 'SUPER_ADMIN' && <Check className="w-3.5 h-3.5 text-purple-600" />}
-                  </button>
-                  <button
-                    onClick={() => handleRoleSwitch('INDUSTRY_PARTNER')}
-                    className={cn(
-                      "w-full px-3 py-2 rounded-xl text-left font-medium transition-all flex items-center justify-between",
-                      currentUser.role === 'INDUSTRY_PARTNER'
-                        ? "bg-amber-50 text-amber-800 font-bold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>🏢 Industry Partner</span>
-                    {currentUser.role === 'INDUSTRY_PARTNER' && <Check className="w-3.5 h-3.5 text-amber-600" />}
-                  </button>
-                </div>
-              </div>
+
 
               <div className="pt-2 border-t border-slate-100 flex flex-col gap-1 text-xs">
                 <Link

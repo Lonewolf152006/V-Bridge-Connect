@@ -1,10 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import prisma from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 
-export async function GET(req: NextRequest) {
-  try {
+const getUsersQuerySchema = z
+  .object({
+    role: z.enum(['student', 'coordinator', 'super_admin', 'industry_partner', 'faculty']).optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
+
+const createUserSchema = z
+  .object({
+    name: z.string().min(1, 'Name is required').max(150),
+    email: z.string().email('Valid email is required'),
+    role: z.string().min(1, 'Role is required'),
+    departmentName: z.string().max(150).optional(),
+    institutionalId: z.string().max(50).optional(),
+  })
+  .strict();
+
+const patchUserSchema = z
+  .object({
+    id: z.string().min(1, 'User ID is required'),
+    role: z.string().optional(),
+    departmentName: z.string().optional(),
+    institutionalId: z.string().optional(),
+  })
+  .strict();
+
+export const GET = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['super_admin', 'coordinator'],
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getUsersQuerySchema,
+  },
+  async ({ query, requestId }) => {
+    const limit = query.limit || 50;
+
     const users = await prisma.user.findMany({
+      where: query.role ? { role: query.role as any } : undefined,
+      take: limit + 1,
+      ...(query.cursor ? { skip: 1, cursor: { id: query.cursor } } : {}),
       include: {
         department: { select: { id: true, name: true, code: true } },
         _count: {
@@ -17,7 +59,10 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const formatted = users.map((u) => ({
+    const hasMore = users.length > limit;
+    const paginated = hasMore ? users.slice(0, limit) : users;
+
+    const formatted = paginated.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
@@ -29,50 +74,54 @@ export async function GET(req: NextRequest) {
       activeTeamsCount: u._count.teamMemberships + u._count.guidedTeams,
     }));
 
-    return NextResponse.json({ users: formatted });
-  } catch (error: any) {
-    console.error('[API /api/v1/admin/users GET] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch users', details: error.message },
-      { status: 500 }
-    );
+    // Backwards compatible payload with both `data` and `users`
+    const nextCursor = hasMore ? paginated[paginated.length - 1]?.id : null;
+    return createSuccessResponse(formatted, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor,
+        total: users.length,
+      },
+      headers: {
+        'x-user-count': String(formatted.length),
+      },
+    });
   }
-}
+);
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { name, email, role, departmentName, institutionalId } = body;
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['super_admin', 'coordinator'],
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: createUserSchema,
+  },
+  async ({ body, requestId }) => {
+    const normalizedEmail = body.email.toLowerCase().trim();
 
-    if (!name || !email || !role) {
-      return NextResponse.json(
-        { error: 'Name, email, and role are required' },
-        { status: 400 }
-      );
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check if user already exists
     const existing = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: `User with email "${normalizedEmail}" already exists` },
-        { status: 409 }
+      return createErrorResponse(
+        'CONFLICT',
+        `User with email "${normalizedEmail}" already exists`,
+        409,
+        requestId,
+        [{ field: 'email', message: 'Email is already registered' }]
       );
     }
 
-    // Find or create department
-    const deptName = departmentName || 'Electronics and Computer Science';
+    const deptName = body.departmentName || 'Electronics and Computer Science';
     let dept = await prisma.department.findFirst({
       where: { name: deptName },
     });
 
     if (!dept) {
-      // Find or create college
       let college = await prisma.college.findFirst({ where: { code: 'VIT' } });
       if (!college) {
         college = await prisma.college.create({
@@ -88,25 +137,27 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const mappedRole = role.toLowerCase();
+    const mappedRole = body.role.toLowerCase();
     const defaultPasswordHash = await bcrypt.hash('Test1234!', 10);
 
     const newUser = await prisma.user.create({
       data: {
-        name,
+        name: body.name.trim(),
         email: normalizedEmail,
         role: mappedRole as any,
         departmentId: dept.id,
-        institutionalId: institutionalId || undefined,
+        institutionalId: body.institutionalId || undefined,
         passwordHash: defaultPasswordHash,
-        facultyCode: mappedRole === 'coordinator' ? `FAC-${name.split(' ').pop()?.toUpperCase() || 'USER'}-2026` : undefined,
+        facultyCode:
+          mappedRole === 'coordinator'
+            ? `FAC-${body.name.trim().split(' ').pop()?.toUpperCase() || 'USER'}-2026`
+            : undefined,
       },
       include: {
         department: true,
       },
     });
 
-    // Record audit event
     await prisma.auditEvent.create({
       data: {
         action: 'INSTITUTIONAL_USER_CREATED',
@@ -122,35 +173,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role.toUpperCase(),
-        department: newUser.department?.name || deptName,
-        institutionalId: newUser.institutionalId || newUser.facultyCode || 'N/A',
-        avatarUrl: newUser.avatarUrl || '',
-      },
-    });
-  } catch (error: any) {
-    console.error('[API /api/v1/admin/users POST] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create user', details: error.message },
-      { status: 500 }
-    );
+    const userPayload = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role.toUpperCase(),
+      department: newUser.department?.name || deptName,
+      institutionalId: newUser.institutionalId || newUser.facultyCode || 'N/A',
+      avatarUrl: newUser.avatarUrl || '',
+    };
+
+    return createSuccessResponse(userPayload, { status: 201, requestId });
   }
-}
+);
 
-export async function PATCH(req: NextRequest) {
-  try {
-    const body = await req.json();
+export const PATCH = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['super_admin', 'coordinator'],
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: patchUserSchema,
+  },
+  async ({ body, requestId }) => {
     const { id, role, departmentName, institutionalId } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
 
     const existing = await prisma.user.findUnique({
       where: { id },
@@ -158,7 +203,7 @@ export async function PATCH(req: NextRequest) {
     });
 
     if (!existing) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createErrorResponse('NOT_FOUND', 'User not found', 404, requestId);
     }
 
     let deptId = existing.departmentId;
@@ -207,9 +252,8 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
+    return createSuccessResponse(
+      {
         id: updated.id,
         name: updated.name,
         email: updated.email,
@@ -218,103 +262,7 @@ export async function PATCH(req: NextRequest) {
         institutionalId: updated.institutionalId || updated.facultyCode || 'N/A',
         avatarUrl: updated.avatarUrl || '',
       },
-    });
-  } catch (error: any) {
-    console.error('[API /api/v1/admin/users PATCH] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update user', details: error.message },
-      { status: 500 }
+      { requestId }
     );
   }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    let id = searchParams.get('id');
-
-    if (!id) {
-      try {
-        const body = await req.json();
-        id = body?.id;
-      } catch {}
-    }
-
-    if (!id) {
-      return NextResponse.json({ error: 'User ID is required for deletion' }, { status: 400 });
-    }
-
-    const userToDelete = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        ownedActivities: { select: { id: true } },
-      },
-    });
-
-    if (!userToDelete) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // If user owns activities, reassign or warn
-    if (userToDelete.ownedActivities.length > 0) {
-      const fallbackAdmin = await prisma.user.findFirst({
-        where: { role: 'super_admin', id: { not: id } },
-      });
-      if (fallbackAdmin) {
-        await prisma.activity.updateMany({
-          where: { ownerId: id },
-          data: { ownerId: fallbackAdmin.id },
-        });
-      } else {
-        return NextResponse.json(
-          { error: 'Cannot delete user because they own active academic initiatives. Please reassign ownership first.' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Safely remove relations
-    await prisma.notification.deleteMany({ where: { userId: id } });
-    await prisma.conversationParticipant.deleteMany({ where: { userId: id } });
-    await prisma.message.deleteMany({ where: { senderId: id } });
-    await prisma.teamMembership.deleteMany({ where: { userId: id } });
-    await prisma.team.updateMany({ where: { mentorId: id }, data: { mentorId: null } });
-    await prisma.team.updateMany({ where: { industryMentorId: id }, data: { industryMentorId: null } });
-    await prisma.submission.updateMany({ where: { reviewerId: id }, data: { reviewerId: null } });
-    await prisma.application.updateMany({ where: { reviewerId: id }, data: { reviewerId: null } });
-    await prisma.certificate.updateMany({ where: { revokedById: id }, data: { revokedById: null } });
-    await prisma.certificate.deleteMany({ where: { studentId: id } });
-    await prisma.submission.deleteMany({ where: { submittedById: id } });
-    await prisma.application.deleteMany({ where: { applicantId: id } });
-    await prisma.rosterInvitation.deleteMany({ where: { claimedById: id } });
-
-    // Delete the user record
-    await prisma.user.delete({ where: { id } });
-
-    // Record in immutable audit ledger
-    await prisma.auditEvent.create({
-      data: {
-        action: 'INSTITUTIONAL_USER_DELETED',
-        entityType: 'user',
-        entityId: id,
-        reason: `Administrator deleted user ${userToDelete.name} (${userToDelete.email}) and revoked all institutional permissions.`,
-        priorValue: {
-          name: userToDelete.name,
-          email: userToDelete.email,
-          role: userToDelete.role,
-        },
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: `User ${userToDelete.name} permanently deleted and permissions revoked.`,
-    });
-  } catch (error: any) {
-    console.error('[API /api/v1/admin/users DELETE] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete user', details: error.message },
-      { status: 500 }
-    );
-  }
-}
+);

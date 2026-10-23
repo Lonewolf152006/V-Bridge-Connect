@@ -73,7 +73,7 @@ async function main() {
       role: 'student',
       departmentId: csDept.id,
       institutionalId: 'VC-2026-891',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Siddharth',
+      avatarUrl: '',
     },
     {
       email: 'maya@university.edu',
@@ -81,7 +81,7 @@ async function main() {
       role: 'student',
       departmentId: csDept.id,
       institutionalId: 'VC-2026-442',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=MayaLin',
+      avatarUrl: '',
     },
     {
       email: 'tariq@university.edu',
@@ -89,7 +89,7 @@ async function main() {
       role: 'student',
       departmentId: eeDept.id,
       institutionalId: 'VC-2026-218',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Tariq',
+      avatarUrl: '',
     },
     {
       email: 'arjun@university.edu',
@@ -97,7 +97,7 @@ async function main() {
       role: 'coordinator',
       departmentId: csDept.id,
       institutionalId: 'FAC-2015-011',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Arjun',
+      avatarUrl: '',
     },
     {
       email: 'rahul@techcorp.com',
@@ -105,7 +105,7 @@ async function main() {
       role: 'industry_partner',
       departmentId: csDept.id,
       institutionalId: 'IND-2026-001',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rahul',
+      avatarUrl: '',
     },
     {
       email: 'rita@university.edu',
@@ -113,7 +113,7 @@ async function main() {
       role: 'super_admin',
       departmentId: csDept.id,
       institutionalId: 'DEAN-2012-001',
-      avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Rita',
+      avatarUrl: '',
     },
   ];
 

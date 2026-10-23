@@ -44,60 +44,12 @@ export async function getRequiredSessionWithRole(
   return user;
 }
 
-import { cookies } from 'next/headers';
-import prisma from '@/lib/db/prisma';
-
 /**
  * Get the current session or null (for optional auth).
  */
 export async function getOptionalSession(): Promise<SessionUser | null> {
   const session = await auth();
   if (session?.user?.id) return session.user as SessionUser;
-
-  // Fallback: check demo user cookie
-  try {
-    const cookieStore = await cookies();
-    const demoCookie = cookieStore.get('vbridge_demo_user');
-    if (demoCookie?.value) {
-      const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
-      const cleanEmail = (parsed.email || 'student@vit.edu.in').toLowerCase().trim();
-
-      // Look up existing user in PostgreSQL database to return their real UUID
-      try {
-        const dbUser = await prisma.user.findFirst({
-          where: { email: { equals: cleanEmail, mode: 'insensitive' } },
-        });
-        if (dbUser) {
-          return {
-            id: dbUser.id,
-            email: dbUser.email,
-            name: dbUser.name,
-            role: dbUser.role as UserRole,
-            departmentId: dbUser.departmentId,
-            institutionalId: dbUser.institutionalId,
-            avatarUrl: dbUser.avatarUrl,
-          };
-        }
-      } catch (dbErr) {
-        console.warn('[getOptionalSession] DB lookup warning:', dbErr);
-      }
-
-      const parts = cleanEmail.split('@');
-      const cleanName = (parts[0] || 'User')
-        .split('.')
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-      return {
-        id: `user-${parts[0].replace(/[^a-zA-Z0-9]/g, '-')}`,
-        email: cleanEmail,
-        name: cleanName,
-        role: (parsed.role || 'student').toLowerCase() as UserRole,
-        departmentId: null,
-        institutionalId: 'INST-2026',
-        avatarUrl: '',
-      };
-    }
-  } catch {}
-
   return null;
 }
+

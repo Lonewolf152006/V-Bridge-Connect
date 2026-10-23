@@ -6,6 +6,7 @@ import { useAppStore } from '@store/appStore';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { RiskBadge } from '@components/common/RiskBadge';
+import { DashboardSkeleton } from '@components/common/DashboardSkeleton';
 import {
   Clock,
   ArrowRight,
@@ -18,6 +19,8 @@ import {
   TrendingUp,
   Sparkles,
   ShieldCheck,
+  FileText,
+  GraduationCap,
 } from 'lucide-react';
 
 interface StudentDashboardData {
@@ -103,16 +106,29 @@ interface StudentDashboardData {
 export const StudentDashboard: React.FC = () => {
   const { currentUser, setActiveWorkspace } = useAppStore();
   const [data, setData] = useState<StudentDashboardData | null>(null);
+  const [menteeForm, setMenteeForm] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchDashboard() {
+    async function loadAll() {
       try {
-        const res = await fetch('/api/v1/student/dashboard');
-        if (res.ok) {
-          const json = await res.json();
+        const menteeUrl = currentUser.email
+          ? `/api/v1/mentee-form?email=${encodeURIComponent(currentUser.email)}`
+          : null;
+
+        const [dashRes, menteeJson] = await Promise.all([
+          fetch('/api/v1/student/dashboard'),
+          menteeUrl
+            ? fetch(menteeUrl)
+                .then((r) => r.json())
+                .catch(() => null)
+            : Promise.resolve(null),
+        ]);
+
+        if (dashRes.ok) {
+          const json = await dashRes.json();
           if (json.success && json.data && isMounted) {
             setData(json.data);
             if (json.data.activeTeam) {
@@ -126,6 +142,10 @@ export const StudentDashboard: React.FC = () => {
             }
           }
         }
+
+        if (menteeJson?.success && menteeJson.form && isMounted) {
+          setMenteeForm(menteeJson.form);
+        }
       } catch (err) {
         console.error('Failed to load student dashboard:', err);
       } finally {
@@ -133,12 +153,16 @@ export const StudentDashboard: React.FC = () => {
       }
     }
 
-    fetchDashboard();
+    loadAll();
 
     return () => {
       isMounted = false;
     };
-  }, [setActiveWorkspace]);
+  }, [setActiveWorkspace, currentUser.email]);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   const activeTeam = data?.activeTeam;
   const metrics = data?.metrics || {
@@ -203,6 +227,78 @@ export const StudentDashboard: React.FC = () => {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* ─── Department Mentee Information & Roll No Action Banner ─── */}
+      <div className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+        menteeForm?.status === 'verified'
+          ? 'bg-emerald-50/70 border-emerald-200'
+          : menteeForm?.status === 'submitted'
+          ? 'bg-indigo-50/70 border-indigo-200'
+          : 'bg-amber-500/10 border-amber-400/40 shadow-xs'
+      }`}>
+        <div className="flex items-start gap-3.5">
+          <div className={`p-2.5 rounded-xl shrink-0 ${
+            menteeForm?.status === 'verified'
+              ? 'bg-emerald-100 text-emerald-800'
+              : menteeForm?.status === 'submitted'
+              ? 'bg-indigo-100 text-indigo-800'
+              : 'bg-amber-500/20 text-amber-800'
+          }`}>
+            <FileText className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-white/80 border border-slate-200 text-slate-800">
+                Department of ECS • NAAC Mandatory
+              </span>
+              {menteeForm?.status === 'verified' ? (
+                <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Roll No Verified ({menteeForm.rollNo})
+                </span>
+              ) : menteeForm?.status === 'submitted' ? (
+                <span className="text-[10px] bg-indigo-200 text-indigo-900 font-bold px-2 py-0.5 rounded-full">
+                  Submitted • Roll No: {menteeForm.rollNo}
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-200 text-amber-950 font-bold px-2 py-0.5 rounded-full animate-pulse">
+                  Action Required: Add Roll No
+                </span>
+              )}
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 mt-1">
+              Personal Details of Mentee Form (with Roll No)
+            </h3>
+            <p className="text-xs text-slate-600 max-w-2xl mt-0.5">
+              {menteeForm?.status === 'verified'
+                ? `Your official mentee record with Roll No (${menteeForm.rollNo}) has been verified and signed by Mentor ${menteeForm.mentorName || 'Dr. Sheetal Patil'}.`
+                : menteeForm?.status === 'submitted'
+                ? `Form submitted with Roll No ${menteeForm.rollNo}. Awaiting digital signature from Mentor ${menteeForm.mentorName || 'Dr. Sheetal Patil'}.`
+                : 'Every student must fill this official Department of Electronics and Computer Science form with your Roll No, mobile, emergency contact, and self-assessment for your teacher and super admin.'}
+            </p>
+          </div>
+        </div>
+
+        <Link href="/mentee-form" className="shrink-0 w-full sm:w-auto">
+          <Button
+            variant="primary"
+            size="sm"
+            className={`w-full sm:w-auto font-bold text-xs ${
+              menteeForm?.status === 'verified'
+                ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                : menteeForm?.status === 'submitted'
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+            }`}
+            rightIcon={<ArrowRight className="w-4 h-4" />}
+          >
+            {menteeForm?.status === 'verified'
+              ? 'View My Mentee Form'
+              : menteeForm?.status === 'submitted'
+              ? 'View / Edit Mentee Form'
+              : 'Fill Mentee Form (Add Roll No)'}
+          </Button>
+        </Link>
       </div>
 
       {/* ─── Real Upcoming Deadline Banner (Shown only when milestone exists) ─── */}

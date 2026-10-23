@@ -5,6 +5,8 @@
 // The Audit module subscribes to the wildcard channel ('*') and writes an
 // immutable record for every event. No other module needs to know Audit exists.
 
+import { runInBackground } from '@/lib/async/after-task';
+
 export interface DomainEvent {
   type: string;           // e.g. 'activity.published', 'milestone.overdue'
   entityType: string;     // e.g. 'activity', 'milestone'
@@ -51,25 +53,36 @@ class EventBus {
   }
 
   /**
-   * Publish a domain event. Notifies specific subscribers first,
-   * then wildcard subscribers (Audit, etc.).
-   * All handlers run synchronously in the same process — this is
-   * intentional per architecture.md §5 (in-process event bus).
+   * Publish a domain event. Runs immediate domain subscribers,
+   * then schedules secondary wildcard subscribers (Audit ledger writes)
+   * in the background using Next.js after() to prevent latency on critical path.
    */
   async publish(event: DomainEvent): Promise<void> {
     const specificHandlers = this.handlers.get(event.type) || [];
-    const allHandlers = [...specificHandlers, ...this.wildcardHandlers];
-
-    for (const handler of allHandlers) {
+    for (const handler of specificHandlers) {
       try {
         await handler(event);
       } catch (error) {
-        // Log but don't let one handler's failure prevent others from running
         console.error(
           `[EventBus] Handler error for event "${event.type}":`,
           error
         );
       }
+    }
+
+    if (this.wildcardHandlers.length > 0) {
+      runInBackground(async () => {
+        for (const handler of this.wildcardHandlers) {
+          try {
+            await handler(event);
+          } catch (error) {
+            console.error(
+              `[EventBus] Wildcard/Audit handler error for event "${event.type}":`,
+              error
+            );
+          }
+        }
+      });
     }
   }
 

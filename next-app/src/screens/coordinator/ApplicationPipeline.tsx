@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { Application, ApplicationStatus } from '@/types';
 import { getApplicationBadge } from '@lib/utils';
+import { InitialsAvatar } from '@components/common/InitialsAvatar';
 
 export const ApplicationPipeline: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -111,11 +112,7 @@ export const ApplicationPipeline: React.FC = () => {
               >
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={app.student?.avatarUrl}
-                      alt={app.student?.name}
-                      className="w-9 h-9 rounded-full bg-slate-200"
-                    />
+                    <InitialsAvatar name={app.student?.name || 'Applicant'} size="md" />
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">
                         {app.student?.name}

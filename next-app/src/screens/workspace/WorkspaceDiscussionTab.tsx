@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
@@ -37,6 +38,7 @@ import {
   Shield,
 } from 'lucide-react';
 import type { Team } from '@/types';
+import { subscribeWorkspaceChannel } from '@/lib/realtime/supabase-realtime';
 
 interface FileAttachment {
   id: string;
@@ -108,109 +110,6 @@ const INITIAL_CHANNELS: Channel[] = [
   },
 ];
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'm1',
-    channelId: 'mini-6-all',
-    senderId: 'user-sheetal-patil',
-    senderName: 'Dr. Sheetal Patil',
-    role: 'COORDINATOR',
-    timestamp: 'Yesterday at 3:45 PM',
-    text: 'Good afternoon Mini 6 team! Please make sure your Milestone 2 evaluation rubric criteria are met. I am uploading the updated departmental guidelines PDF below for reference.',
-    attachments: [
-      {
-        id: 'att-1',
-        name: 'Capstone_Milestone2_Rubric_Guidelines_v3.pdf',
-        size: '1.8 MB',
-        type: 'pdf',
-      },
-    ],
-    reactions: [
-      { emoji: '👍', count: 4, users: ['Vedant Balvant Nikumbh', 'Yash Sachin Khanvilkar', 'Paras Rajeev Shah', 'Vedant Nilesh Patole'] },
-      { emoji: '📌', count: 1, users: ['Dr. Sheetal Patil'] },
-    ],
-    isPinned: true,
-  },
-  {
-    id: 'm2',
-    channelId: 'mini-6-all',
-    senderId: 'user-yash-khanvilkar',
-    senderName: 'Yash Sachin Khanvilkar',
-    role: 'STUDENT',
-    timestamp: 'Yesterday at 4:20 PM',
-    text: 'Thank you Dr. Sheetal Mam! We have implemented the zero-copy buffer queue and mitigated the 128-channel sensor overrun. Here is the architecture diagram and the test run telemetry snapshot.',
-    attachments: [
-      {
-        id: 'att-2',
-        name: 'Autonomous_Sensor_Architecture_Diagram.png',
-        size: '840 KB',
-        type: 'image',
-        previewUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
-      },
-      {
-        id: 'att-3',
-        name: '128ch_Throughput_Stress_Benchmark.csv',
-        size: '345 KB',
-        type: 'csv',
-      },
-    ],
-    reactions: [
-      { emoji: '🚀', count: 3, users: ['Dr. Sheetal Patil', 'Vedant Balvant Nikumbh', 'Paras Rajeev Shah'] },
-      { emoji: '🔥', count: 2, users: ['Yash Sachin Khanvilkar', 'Rahul Kapoor'] },
-    ],
-  },
-  {
-    id: 'm3',
-    channelId: 'mini-6-all',
-    senderId: 'user-partner-001',
-    senderName: 'Rahul Kapoor',
-    role: 'INDUSTRY_PARTNER',
-    timestamp: 'Today at 9:15 AM',
-    text: 'Great progress on the buffer throughput! From an industry production standpoint, make sure you configure graceful fallback on network packet drops. Here is the Python mitigation wrapper we use in high-frequency pipelines:',
-    codeSnippet: {
-      language: 'python',
-      code: `async def on_packet_drop(packet_id: str, retry_count: int = 3):\n    if retry_count <= 0:\n        logger.warning(f"Drop mitigation: rerouting packet {packet_id} to dead-letter queue")\n        return False\n    return await retry_stream_buffer(packet_id, backoff_ms=50)`,
-    },
-    reactions: [
-      { emoji: '💡', count: 4, users: ['Vedant Balvant Nikumbh', 'Yash Sachin Khanvilkar', 'Dr. Sheetal Patil', 'Paras Rajeev Shah'] },
-    ],
-  },
-  {
-    id: 'm4',
-    channelId: 'mini-6-all',
-    senderId: 'user-vedant-nikumbh',
-    senderName: 'Vedant Balvant Nikumbh',
-    role: 'STUDENT',
-    timestamp: 'Today at 10:30 AM',
-    text: 'Understood Sir! I have incorporated this exponential backoff into our PyTorch telemetry collector. We are currently recording our 5-minute video presentation.',
-    reactions: [
-      { emoji: '🙌', count: 2, users: ['Yash Sachin Khanvilkar', 'Rahul Kapoor'] },
-    ],
-  },
-  // Direct Message sample with Dr. Sheetal Patil
-  {
-    id: 'dm-1',
-    channelId: 'dm-user-sheetal-patil',
-    senderId: 'user-sheetal-patil',
-    senderName: 'Dr. Sheetal Patil',
-    role: 'COORDINATOR',
-    timestamp: 'Today at 11:00 AM',
-    text: 'Hello Vedant! Please ensure your git commit history is updated before the midterm audit review.',
-    reactions: [{ emoji: '👍', count: 1, users: ['Vedant Balvant Nikumbh'] }],
-  },
-  // Direct Message sample with Yash
-  {
-    id: 'dm-2',
-    channelId: 'dm-user-yash-khanvilkar',
-    senderId: 'user-yash-khanvilkar',
-    senderName: 'Yash Sachin Khanvilkar',
-    role: 'STUDENT',
-    timestamp: 'Today at 11:30 AM',
-    text: 'Hey Vedant! Did you test the RL model on the local test harness? The unit tests passed on my branch.',
-    reactions: [{ emoji: '🚀', count: 1, users: ['Vedant Balvant Nikumbh'] }],
-  },
-];
-
 interface WorkspaceDiscussionTabProps {
   currentTeam?: Team;
 }
@@ -230,7 +129,7 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
   // Default active channel matches the current group
   const defaultChannelId = activeTeam.id === 'team-mini-1' ? 'mini-1-all' : activeTeam.id === 'team-mini-8' ? 'mini-8-all' : 'mini-6-all';
   const [activeChannel, setActiveChannel] = useState<string>(defaultChannelId);
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [stagedFiles, setStagedFiles] = useState<FileAttachment[]>([]);
   const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null);
@@ -258,17 +157,12 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
             // Set of IDs retrieved from the live database
             const dbIds = new Set(dbMsgs.map((m) => m.id));
 
-            // Keep default initial messages for this channel that aren't duplicated in DB
-            const initialForChannel = INITIAL_MESSAGES.filter(
-              (m) => m.channelId === activeChannel && !dbIds.has(m.id)
-            );
-
             // Keep pending optimistic messages currently being sent
             const pendingOptimistic = prev.filter(
               (m) => m.channelId === activeChannel && m.id.startsWith('msg-') && !dbIds.has(m.id)
             );
 
-            return [...otherChannelMsgs, ...initialForChannel, ...dbMsgs, ...pendingOptimistic];
+            return [...otherChannelMsgs, ...dbMsgs, ...pendingOptimistic];
           });
         }
       } catch (err) {
@@ -279,10 +173,17 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
     // Immediate initial fetch
     fetchMessagesForChannel();
 
-    // 3-second live polling interval so incoming messages from professors, mentors, and peers appear automatically
+    // Supabase Realtime channel subscription (strictly budgeted to 1 workspace channel per tab)
+    const unsubscribeRealtime = subscribeWorkspaceChannel(activeTeam.id, (event) => {
+      if (event === 'message') {
+        fetchMessagesForChannel();
+      }
+    });
+
+    // 30-second low-frequency heartbeat fallback for offline recovery
     const pollTimer = setInterval(() => {
       fetchMessagesForChannel();
-    }, 3000);
+    }, 30000);
 
     // Cross-tab real-time listener (fires instantly when another tab sends a message)
     const handleStorageChange = (e: StorageEvent) => {
@@ -294,13 +195,11 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
 
     return () => {
       isMounted = false;
+      unsubscribeRealtime();
       clearInterval(pollTimer);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [activeChannel]);
-
-  // Role simulator so user can test sending as Student, Faculty Coordinator, or Industry Mentor
-  const [simulatedRole, setSimulatedRole] = useState<'CURRENT' | 'COORDINATOR' | 'INDUSTRY_PARTNER'>('CURRENT');
+  }, [activeChannel, activeTeam.id]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -406,25 +305,11 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
     e.preventDefault();
     if (!inputText.trim() && stagedFiles.length === 0 && !snippetCode.trim()) return;
 
-    let sender = {
+    const sender = {
       id: currentUser.id,
-      name: currentUser.name || 'Vedant Balvant Nikumbh',
+      name: currentUser.name || 'User',
       role: (currentUser.role as ChatMessage['role']) || 'STUDENT',
     };
-
-    if (simulatedRole === 'COORDINATOR') {
-      sender = {
-        id: 'user-sheetal-patil',
-        name: 'Dr. Sheetal Patil',
-        role: 'COORDINATOR',
-      };
-    } else if (simulatedRole === 'INDUSTRY_PARTNER') {
-      sender = {
-        id: 'user-partner-001',
-        name: 'Rahul Kapoor',
-        role: 'INDUSTRY_PARTNER',
-      };
-    }
 
     const messageText = inputText.trim();
     const tempId = `msg-${Date.now()}`;
@@ -1020,7 +905,7 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
           )}
 
           {/* Input Form or One-Way Student Read-Only Notice */}
-          {currentUser.role === 'STUDENT' && simulatedRole === 'CURRENT' ? (
+          {currentUser.role === 'STUDENT' && activeChannel === 'general-announcements' ? (
             <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200/80 flex items-center justify-between gap-3 text-xs text-slate-600">
               <div className="flex items-center gap-2.5">
                 <Lock className="w-4 h-4 text-indigo-600 flex-shrink-0" />
@@ -1085,18 +970,10 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
                 </button>
               </div>
 
-              {/* Sender Role Switcher */}
+              {/* Authenticated Sender Indicator */}
               <div className="flex items-center gap-1.5 text-[11px]">
                 <span className="text-slate-400 hidden sm:inline">Sending as:</span>
-                <select
-                  value={simulatedRole}
-                  onChange={(e) => setSimulatedRole(e.target.value as any)}
-                  className="bg-transparent font-bold text-indigo-600 focus:outline-none cursor-pointer"
-                >
-                  <option value="CURRENT">You ({currentUser.name})</option>
-                  <option value="COORDINATOR">Dr. Sheetal Patil (Coordinator)</option>
-                  <option value="INDUSTRY_PARTNER">Rahul Kapoor (Industry Mentor)</option>
-                </select>
+                <span className="font-bold text-indigo-600">{currentUser.name || 'User'}</span>
               </div>
             </div>
 
@@ -1203,10 +1080,13 @@ export const WorkspaceDiscussionTab: React.FC<WorkspaceDiscussionTabProps> = ({ 
             {/* Modal Content Preview */}
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 min-h-[240px] flex items-center justify-center overflow-hidden">
               {previewFile.previewUrl ? (
-                <img
+                <Image
                   src={previewFile.previewUrl}
                   alt={previewFile.name}
-                  className="max-h-[350px] object-contain rounded-lg shadow-xs"
+                  width={500}
+                  height={350}
+                  unoptimized
+                  className="max-h-[350px] w-auto object-contain rounded-lg shadow-xs"
                 />
               ) : (
                 <div className="text-center space-y-2">

@@ -17,6 +17,7 @@ import {
   BarChart3,
   X,
   FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
@@ -35,6 +36,13 @@ const NAV_ITEMS: SidebarItem[] = [
     to: '/dashboard',
     icon: LayoutDashboard,
     roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER', 'SUPER_ADMIN'],
+  },
+  {
+    label: 'Mentee Details (Roll No)',
+    to: '/mentee-form',
+    icon: FileText,
+    roles: ['STUDENT', 'COORDINATOR', 'SUPER_ADMIN'],
+    badge: 'Required',
   },
   {
     label: 'Workspace Hub',

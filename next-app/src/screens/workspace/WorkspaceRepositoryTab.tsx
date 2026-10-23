@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
 import { InitialsAvatar } from '@components/common/InitialsAvatar';
@@ -346,52 +347,14 @@ const INITIAL_COMMITS: CommitItem[] = [
   },
 ];
 
-const INITIAL_PRS: PullRequestItem[] = [
-  {
-    id: 14,
-    title: 'feat: Implement adaptive buffer throttling for Milestone 2 live demo',
-    branch: 'feature/buffer-throttle',
-    targetBranch: 'main',
-    author: 'Yash Sachin Khanvilkar',
-    authorAvatar: '',
-    status: 'OPEN',
-    createdAt: 'Today at 11:20 AM',
-    commentsCount: 4,
-    reviewers: [
-      { name: 'Dr. Sheetal Patil (Lead Mentor)', status: 'APPROVED' },
-      { name: 'Rahul Kapoor (Industry Mentor)', status: 'PENDING' },
-    ],
-    labels: ['milestone-2', 'backend', 'enhancement'],
-  },
-  {
-    id: 12,
-    title: 'fix: Address WebSocket stream memory leak in telemetry bridge',
-    branch: 'bugfix/ws-memory-leak',
-    targetBranch: 'main',
-    author: 'Vedant Balvant Nikumbh',
-    authorAvatar: '',
-    status: 'MERGED',
-    createdAt: '3 days ago',
-    commentsCount: 2,
-    reviewers: [{ name: 'Dr. Sheetal Patil', status: 'APPROVED' }],
-    labels: ['bug', 'performance'],
-  },
-  {
-    id: 9,
-    title: 'docs: Milestone 1 System Architecture Specification v2',
-    branch: 'docs/m1-spec',
-    targetBranch: 'main',
-    author: 'Paras Rajeev Shah',
-    authorAvatar: '',
-    status: 'MERGED',
-    createdAt: '1 week ago',
-    commentsCount: 5,
-    reviewers: [{ name: 'Prof. Akhil Masurkar', status: 'APPROVED' }],
-    labels: ['documentation', 'approved'],
-  },
-];
+interface WorkspaceRepositoryTabProps {
+  teamId?: string;
+}
 
-export const WorkspaceRepositoryTab: React.FC = () => {
+export const WorkspaceRepositoryTab: React.FC<WorkspaceRepositoryTabProps> = ({ teamId }) => {
+  const params = useParams();
+  const resolvedTeamId = teamId || (params?.teamId as string) || 'team-mini-6';
+
   const [repoUrl, setRepoUrl] = useState('https://github.com/nexgen-ai/autonomous-pipeline');
   const [selectedBranch, setSelectedBranch] = useState('main');
   const [activeSubTab, setActiveSubTab] = useState<'commits' | 'code' | 'prs' | 'cicd'>('commits');
@@ -417,37 +380,69 @@ export const WorkspaceRepositoryTab: React.FC = () => {
   const [tempRepoUrl, setTempRepoUrl] = useState(repoUrl);
 
   // Pull Requests state
-  const [prs, setPrs] = useState<PullRequestItem[]>(INITIAL_PRS);
+  const [prs, setPrs] = useState<PullRequestItem[]>([]);
+  const [isLoadingPrs, setIsLoadingPrs] = useState<boolean>(true);
   const [showNewPrModal, setShowNewPrModal] = useState(false);
   const [newPrTitle, setNewPrTitle] = useState('');
   const [newPrBranch, setNewPrBranch] = useState('feature/buffer-throttle');
   const [newPrTarget, setNewPrTarget] = useState('main');
   const [newPrDescription, setNewPrDescription] = useState('');
 
-  const handleCreatePr = (e: React.FormEvent) => {
+  // Fetch real persisted pull requests from database
+  useEffect(() => {
+    async function loadPrs() {
+      try {
+        setIsLoadingPrs(true);
+        const res = await fetch(`/api/v1/teams/${encodeURIComponent(resolvedTeamId)}/pull-requests`);
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.data)) {
+            setPrs(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load pull requests:', err);
+      } finally {
+        setIsLoadingPrs(false);
+      }
+    }
+    loadPrs();
+  }, [resolvedTeamId]);
+
+  const handleCreatePr = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPrTitle.trim()) return;
 
-    const newPr: PullRequestItem = {
-      id: prs.length + 10,
-      title: newPrTitle.trim(),
-      branch: newPrBranch,
-      targetBranch: newPrTarget,
-      author: 'Harshad Panchal',
-      authorAvatar: '',
-      status: 'OPEN',
-      createdAt: 'Just now',
-      commentsCount: 0,
-      reviewers: [{ name: 'Dr. Sheetal Patil (Lead Mentor)', status: 'PENDING' }],
-      labels: ['student-submission', 'in-review'],
-    };
+    try {
+      const res = await fetch(`/api/v1/teams/${encodeURIComponent(resolvedTeamId)}/pull-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newPrTitle.trim(),
+          branch: newPrBranch.trim(),
+          targetBranch: newPrTarget.trim(),
+          description: newPrDescription.trim(),
+        }),
+      });
 
-    setPrs([newPr, ...prs]);
-    setShowNewPrModal(false);
-    setNewPrTitle('');
-    setNewPrDescription('');
-    setRefreshMessage(`Pull request #${newPr.id} created successfully!`);
-    setTimeout(() => setRefreshMessage(null), 4000);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          setPrs((prev) => [json.data, ...prev]);
+          setRefreshMessage(`Pull request #${json.data.id} created and persisted successfully!`);
+        }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setRefreshMessage(`Failed to create pull request: ${errJson.error || 'Server error'}`);
+      }
+    } catch (err: any) {
+      setRefreshMessage(`Failed to create pull request: ${err.message}`);
+    } finally {
+      setShowNewPrModal(false);
+      setNewPrTitle('');
+      setNewPrDescription('');
+      setTimeout(() => setRefreshMessage(null), 4000);
+    }
   };
 
   const toggleFolder = (path: string) => {
@@ -840,71 +835,86 @@ export const WorkspaceRepositoryTab: React.FC = () => {
             </Button>
           </div>
 
-          <div className="space-y-3">
-            {prs.map((pr) => (
-              <Card key={pr.id} padding="md" className="border-slate-200 hover:border-slate-300">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-slate-400 font-bold">#{pr.id}</span>
-                      <h4 className="font-bold text-slate-900 text-sm">{pr.title}</h4>
-                      <span
-                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          pr.status === 'OPEN'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-purple-50 text-purple-700 border border-purple-200'
-                        }`}
-                      >
-                        {pr.status}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <span>By <strong className="text-slate-800">{pr.author}</strong></span>
-                      <span>•</span>
-                      <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {pr.branch}
-                      </span>
-                      <span>into</span>
-                      <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {pr.targetBranch}
-                      </span>
-                      <span>•</span>
-                      <span>{pr.createdAt}</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      {pr.labels.map((label) => (
+          {isLoadingPrs ? (
+            <div className="py-12 text-center text-xs text-slate-400">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
+              Loading team pull requests...
+            </div>
+          ) : prs.length === 0 ? (
+            <Card padding="lg" className="border-slate-200 text-center py-12">
+              <GitPullRequest className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-slate-700">No Pull Requests Open</h4>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                No active pull requests for this team. Click &quot;New Pull Request&quot; above to submit milestone code for review.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {prs.map((pr) => (
+                <Card key={pr.id} padding="md" className="border-slate-200 hover:border-slate-300">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs text-slate-400 font-bold">#{pr.id}</span>
+                        <h4 className="font-bold text-slate-900 text-sm">{pr.title}</h4>
                         <span
-                          key={label}
-                          className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium"
+                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                            pr.status === 'OPEN'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-purple-50 text-purple-700 border border-purple-200'
+                          }`}
                         >
-                          {label}
+                          {pr.status}
                         </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>By <strong className="text-slate-800">{pr.author}</strong></span>
+                        <span>•</span>
+                        <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {pr.branch}
+                        </span>
+                        <span>into</span>
+                        <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {pr.targetBranch}
+                        </span>
+                        <span>•</span>
+                        <span>{pr.createdAt}</span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {pr.labels.map((label) => (
+                          <span
+                            key={label}
+                            className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Reviewers */}
+                    <div className="text-right space-y-1 flex-shrink-0">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Faculty / Mentor Reviews
+                      </div>
+                      {pr.reviewers.map((rev, i) => (
+                        <div key={i} className="text-xs font-semibold flex items-center gap-1.5 justify-end">
+                          <span className="text-slate-800">{rev.name}</span>
+                          {rev.status === 'APPROVED' ? (
+                            <span className="text-emerald-600 text-[10px] font-bold">● Approved</span>
+                          ) : (
+                            <span className="text-amber-600 text-[10px] font-bold">● Review Pending</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
-
-                  {/* Reviewers */}
-                  <div className="text-right space-y-1 flex-shrink-0">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Faculty / Mentor Reviews
-                    </div>
-                    {pr.reviewers.map((rev, i) => (
-                      <div key={i} className="text-xs font-semibold flex items-center gap-1.5 justify-end">
-                        <span className="text-slate-800">{rev.name}</span>
-                        {rev.status === 'APPROVED' ? (
-                          <span className="text-emerald-600 text-[10px] font-bold">● Approved</span>
-                        ) : (
-                          <span className="text-amber-600 text-[10px] font-bold">● Review Pending</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -172,6 +172,14 @@ export const certificateService = {
       return { valid: false, message: 'Invalid or unknown certificate verification hash' };
     }
 
+    // QA-14 & FR-114: Self-reported achievements cannot be verified via registrar endpoint
+    if (cert.type !== 'platform_issued') {
+      return {
+        valid: false,
+        message: 'Self-reported external certificates cannot be verified via the official registrar verification endpoint (FR-114, QA-14).',
+      };
+    }
+
     if (cert.status === 'revoked') {
       return {
         valid: false,

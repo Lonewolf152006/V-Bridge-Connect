@@ -14,11 +14,14 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
+  FileText,
+  GraduationCap,
 } from 'lucide-react';
-import { MOCK_USERS_LIST } from '@services/mockData';
 import { roleLabel } from '@lib/utils';
 import type { UserRole } from '@/types';
 import Link from 'next/link';
+import { InitialsAvatar } from '@components/common/InitialsAvatar';
+import { MenteeRecordsHub } from '@/components/mentee/MenteeRecordsHub';
 
 interface DirectoryUser {
   id: string;
@@ -32,21 +35,11 @@ interface DirectoryUser {
 }
 
 export const DirectoryPermissions: React.FC = () => {
-  const [users, setUsers] = useState<DirectoryUser[]>(() =>
-    MOCK_USERS_LIST.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      department: u.department,
-      institutionalId: u.institutionalId || 'INST-VIT',
-      avatarUrl: u.avatarUrl || '',
-      activeTeamsCount: 1,
-    }))
-  );
+  const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+  const [activeAdminTab, setActiveAdminTab] = useState<'DIRECTORY' | 'MENTEE_RECORDS'>('DIRECTORY');
 
   // Add User Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -75,7 +68,7 @@ export const DirectoryPermissions: React.FC = () => {
       const res = await fetch('/api/v1/admin/users');
       if (res.ok) {
         const data = await res.json();
-        if (data.users && data.users.length > 0) {
+        if (Array.isArray(data.users)) {
           setUsers(data.users);
         }
       }
@@ -272,6 +265,16 @@ export const DirectoryPermissions: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/mentee-form">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<GraduationCap className="w-4 h-4 text-emerald-600" />}
+              className="border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-bold"
+            >
+              Mentee Records (Roll Nos)
+            </Button>
+          </Link>
           <Link href="/coordinator/roster-upload">
             <Button
               variant="outline"
@@ -292,134 +295,169 @@ export const DirectoryPermissions: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Filter Bar ─── */}
-      <Card padding="md" className="flex flex-col sm:flex-row gap-3 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, institutional ID, email, or department..."
-            className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
-        </div>
-
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-700"
+      {/* ─── Admin Tabs: User Directory vs Mentee Personal Details (NAAC) ─── */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          onClick={() => setActiveAdminTab('DIRECTORY')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+            activeAdminTab === 'DIRECTORY'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
         >
-          <option value="ALL">All Roles ({users.length})</option>
-          <option value="STUDENT">Students</option>
-          <option value="COORDINATOR">Faculty Mentors / Coordinators</option>
-          <option value="INDUSTRY_PARTNER">Industry Partners</option>
-          <option value="SUPER_ADMIN">Dean / Super Admins</option>
-        </select>
+          <ShieldCheck className="w-4 h-4" />
+          <span>User Directory & Permissions</span>
+        </button>
 
         <button
-          onClick={fetchUsers}
-          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-          title="Refresh Directory"
+          onClick={() => setActiveAdminTab('MENTEE_RECORDS')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
+            activeAdminTab === 'MENTEE_RECORDS'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
         >
-          <RefreshCw className="w-4 h-4" />
+          <GraduationCap className="w-4 h-4" />
+          <span>Mentee Personal Details Register</span>
+          <span className="text-[10px] bg-amber-400 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full">
+            NAAC Form
+          </span>
         </button>
-      </Card>
+      </div>
 
-      {/* ─── Directory Table (Live DB Data) ─── */}
-      <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50/80 border-b border-slate-200/60 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
-              <tr>
-                <th className="px-5 py-3">Member & Institutional ID</th>
-                <th className="px-5 py-3">Assigned Role</th>
-                <th className="px-5 py-3">Department Scope</th>
-                <th className="px-5 py-3">Active Groups</th>
-                <th className="px-5 py-3">Access Level</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-400">
-                    Loading live directory members from database...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                    No members match your search query.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={u.avatarUrl}
-                          alt={u.name}
-                          className="w-8 h-8 rounded-full bg-slate-200 shrink-0"
-                        />
-                        <div>
-                          <div className="font-bold text-slate-900">{u.name}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">
-                            {u.email} • {u.institutionalId || 'ID-PENDING'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+      {activeAdminTab === 'MENTEE_RECORDS' ? (
+        <MenteeRecordsHub
+          title="Institutional Mentee Register (All Cohorts & Mentors)"
+          subtitle="Department of Electronics and Computer Science • View and export all student personal details forms, roll numbers, emergency contacts, and faculty guide verification statuses."
+        />
+      ) : (
+        <>
+          {/* ─── Filter Bar ─── */}
+          <Card padding="md" className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, institutional ID, email, or department..."
+                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
 
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                        {roleLabel(u.role)}
-                      </span>
-                    </td>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-700"
+            >
+              <option value="ALL">All Roles ({users.length})</option>
+              <option value="STUDENT">Students</option>
+              <option value="COORDINATOR">Faculty Mentors / Coordinators</option>
+              <option value="INDUSTRY_PARTNER">Industry Partners</option>
+              <option value="SUPER_ADMIN">Dean / Super Admins</option>
+            </select>
 
-                    <td className="px-5 py-3.5 text-slate-600">{u.department}</td>
+            <button
+              onClick={fetchUsers}
+              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              title="Refresh Directory"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </Card>
 
-                    <td className="px-5 py-3.5 text-slate-600 font-medium">
-                      {u.activeTeamsCount || 1} Workspaces
-                    </td>
-
-                    <td className="px-5 py-3.5">
-                      <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Verified Database Identity</span>
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(u)}
-                          title="Edit role and department scope"
-                          className="text-slate-600 hover:text-indigo-600"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmDeleteUser(u)}
-                          title="Delete user and revoke roles"
-                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
+          {/* ─── Directory Table (Live DB Data) ─── */}
+          <Card padding="none" className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-50/80 border-b border-slate-200/60 text-slate-500 uppercase tracking-wider text-[11px] font-semibold">
+                  <tr>
+                    <th className="px-5 py-3">Member & Institutional ID</th>
+                    <th className="px-5 py-3">Assigned Role</th>
+                    <th className="px-5 py-3">Department Scope</th>
+                    <th className="px-5 py-3">Active Groups</th>
+                    <th className="px-5 py-3">Access Level</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-8 text-center text-slate-400">
+                        Loading live directory members from database...
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                        No members match your search query.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((u) => (
+                      <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <InitialsAvatar name={u.name} size="sm" />
+                            <div>
+                              <div className="font-bold text-slate-900">{u.name}</div>
+                              <div className="text-[11px] text-slate-400 font-mono">
+                                {u.email} • {u.institutionalId || 'ID-PENDING'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {roleLabel(u.role)}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-3.5 text-slate-600">{u.department}</td>
+
+                        <td className="px-5 py-3.5 text-slate-600 font-medium">
+                          {u.activeTeamsCount || 1} Workspaces
+                        </td>
+
+                        <td className="px-5 py-3.5">
+                          <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Verified Database Identity</span>
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEdit(u)}
+                              title="Edit role and department scope"
+                              className="text-slate-600 hover:text-indigo-600"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setConfirmDeleteUser(u)}
+                              title="Delete user and revoke roles"
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
 
       {/* ─── Modal: Add Institutional User ─── */}
       <Modal
@@ -541,11 +579,7 @@ export const DirectoryPermissions: React.FC = () => {
         <form onSubmit={handleSaveEdit} className="space-y-4 text-xs sm:text-sm">
           {editingUser && (
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-              <img
-                src={editingUser.avatarUrl}
-                alt={editingUser.name}
-                className="w-9 h-9 rounded-full bg-slate-200 shrink-0"
-              />
+              <InitialsAvatar name={editingUser.name} size="md" />
               <div>
                 <div className="font-bold text-slate-900">{editingUser.name}</div>
                 <div className="text-[11px] text-slate-400 font-mono">

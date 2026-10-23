@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/db/prisma';
@@ -51,7 +52,6 @@ async function resolveTeamAliases(teamId: string): Promise<string[]> {
 async function getStoredMeetings(): Promise<PlannedMeeting[]> {
   const meetingMap = new Map<string, PlannedMeeting>();
 
-  // 1. Load from PostgreSQL auditEvent for permanent cross-deployment persistence
   try {
     const dbEvents = await prisma.auditEvent.findMany({
       where: { entityType: 'meeting' },
@@ -69,7 +69,6 @@ async function getStoredMeetings(): Promise<PlannedMeeting[]> {
     console.warn('[Meetings API] Error fetching DB meetings:', dbErr);
   }
 
-  // 2. Load from local JSON file cache
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = await fs.promises.readFile(DATA_FILE, 'utf-8');
@@ -100,57 +99,84 @@ async function saveStoredMeetings(meetings: PlannedMeeting[]): Promise<void> {
   }
 }
 
-// GET /api/v1/meetings?teamId=...
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const teamId = searchParams.get('teamId');
+const getMeetingsQuerySchema = z
+  .object({
+    teamId: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
 
+const createMeetingSchema = z
+  .object({
+    teamId: z.string().min(1, 'teamId is required'),
+    title: z.string().min(1, 'title is required').max(200),
+    scheduledAt: z.string().min(1, 'scheduledAt is required'),
+    agenda: z.string().max(2000).optional(),
+    meetLink: z.string().optional(),
+    hostName: z.string().max(100).optional(),
+    hostRole: z.string().max(100).optional(),
+  })
+  .strict();
+
+const patchMeetingSchema = z
+  .object({
+    meetingId: z.string().min(1, 'meetingId is required'),
+    meetLink: z.string().optional(),
+  })
+  .strict();
+
+export const GET = apiRoute(
+  {
+    requireAuth: true,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getMeetingsQuerySchema,
+  },
+  async ({ query, requestId }) => {
     const all = await getStoredMeetings();
+    const limit = query.limit || 50;
 
-    if (!teamId) {
-      return NextResponse.json({ success: true, meetings: all });
+    let filtered = all;
+    if (query.teamId) {
+      const aliases = await resolveTeamAliases(query.teamId);
+      filtered = all.filter((m) => aliases.includes(m.teamId.toLowerCase()));
     }
 
-    const aliases = await resolveTeamAliases(teamId);
-    const filtered = all.filter((m) => aliases.includes(m.teamId.toLowerCase()));
-
-    return NextResponse.json({
-      success: true,
-      meetings: filtered,
+    const paginated = filtered.slice(0, limit);
+    return createSuccessResponse(paginated, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore: filtered.length > limit,
+        nextCursor: filtered.length > limit ? paginated[paginated.length - 1]?.id : null,
+        total: filtered.length,
+      },
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || 'Failed to fetch meetings' },
-      { status: 500 }
-    );
   }
-}
+);
 
-// POST /api/v1/meetings - Plan a new meeting
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { teamId, title, scheduledAt, agenda, meetLink, hostName, hostRole } = body;
-
-    if (!teamId || !title || !scheduledAt) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields: teamId, title, scheduledAt' },
-        { status: 400 }
-      );
-    }
-
-    // Resolve canonical team ID if possible
-    let canonicalTeamId = teamId;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
-    const normalized = teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
-    const digits = teamId.match(/\d+/)?.[0];
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['coordinator', 'super_admin', 'industry_partner', 'student'],
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: createMeetingSchema,
+  },
+  async ({ body, user, requestId }) => {
+    let canonicalTeamId = body.teamId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.teamId);
+    const normalized = body.teamId.replace(/^team-/i, '').replace(/-/g, ' ').trim();
+    const digits = body.teamId.match(/\d+/)?.[0];
     try {
       const team = await prisma.team.findFirst({
         where: {
           OR: [
-            ...(isUuid ? [{ id: teamId }] : []),
-            { name: { equals: teamId, mode: 'insensitive' as const } },
+            ...(isUuid ? [{ id: body.teamId }] : []),
+            { name: { equals: body.teamId, mode: 'insensitive' as const } },
             { name: { equals: normalized, mode: 'insensitive' as const } },
             ...(digits ? [{ name: { contains: digits, mode: 'insensitive' as const } }] : []),
           ],
@@ -166,17 +192,16 @@ export async function POST(req: NextRequest) {
     const newMeeting: PlannedMeeting = {
       id: `meet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       teamId: canonicalTeamId,
-      title: title.trim(),
-      scheduledAt: new Date(scheduledAt).toISOString(),
-      agenda: agenda?.trim() || '',
-      meetLink: meetLink?.trim() || '',
-      hostName: hostName?.trim() || 'Dr. Sheetal Patil',
-      hostRole: hostRole?.trim() || 'Faculty Guide',
+      title: body.title.trim(),
+      scheduledAt: new Date(body.scheduledAt).toISOString(),
+      agenda: body.agenda?.trim() || '',
+      meetLink: body.meetLink?.trim() || '',
+      hostName: body.hostName?.trim() || user.name || 'Dr. Sheetal Patil',
+      hostRole: body.hostRole?.trim() || user.role || 'Faculty Guide',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // 1. Persist to PostgreSQL DB auditEvent table
     try {
       await prisma.auditEvent.create({
         data: {
@@ -191,50 +216,34 @@ export async function POST(req: NextRequest) {
       console.warn('[Meetings API] DB audit log write warning:', dbErr);
     }
 
-    // 2. Also save to local file
     const all = await getStoredMeetings();
     all.unshift(newMeeting);
     await saveStoredMeetings(all);
 
-    return NextResponse.json({
-      success: true,
-      meeting: newMeeting,
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || 'Failed to plan meeting' },
-      { status: 500 }
-    );
+    return createSuccessResponse(newMeeting, { status: 201, requestId });
   }
-}
+);
 
-// PATCH /api/v1/meetings - Professor uploads / updates meeting link
-export async function PATCH(req: NextRequest) {
-  try {
-    const body = await req.json();
+export const PATCH = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['coordinator', 'super_admin', 'industry_partner', 'student'],
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: patchMeetingSchema,
+  },
+  async ({ body, requestId }) => {
     const { meetingId, meetLink } = body;
-
-    if (!meetingId) {
-      return NextResponse.json(
-        { success: false, error: 'Missing meetingId' },
-        { status: 400 }
-      );
-    }
 
     const all = await getStoredMeetings();
     const idx = all.findIndex((m) => m.id === meetingId);
 
     if (idx === -1) {
-      return NextResponse.json(
-        { success: false, error: `Meeting with ID "${meetingId}" not found` },
-        { status: 404 }
-      );
+      return createErrorResponse('NOT_FOUND', `Meeting with ID "${meetingId}" not found`, 404, requestId);
     }
 
     all[idx].meetLink = meetLink ? meetLink.trim() : '';
     all[idx].updatedAt = new Date().toISOString();
 
-    // 1. Update in PostgreSQL
     try {
       await prisma.auditEvent.create({
         data: {
@@ -249,17 +258,7 @@ export async function PATCH(req: NextRequest) {
       console.warn('[Meetings API] DB link update warning:', dbErr);
     }
 
-    // 2. Update in file
     await saveStoredMeetings(all);
-
-    return NextResponse.json({
-      success: true,
-      meeting: all[idx],
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || 'Failed to update meeting link' },
-      { status: 500 }
-    );
+    return createSuccessResponse(all[idx], { requestId });
   }
-}
+);

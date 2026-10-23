@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Card } from '@components/common/Card';
 import { Button } from '@components/common/Button';
@@ -40,7 +41,6 @@ import {
   Eye,
 } from 'lucide-react';
 import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
-import { MOCK_TEAMS } from '@services/mockData';
 import type { Team, Milestone, DeliverableType, TeamMemberRole, Certificate } from '@/types';
 import { formatDate } from '@lib/utils';
 
@@ -91,8 +91,8 @@ export const MentorDashboard: React.FC = () => {
   const [isRegeneratingCode, setIsRegeneratingCode] = useState<boolean>(false);
   const [isJoinCohortOpen, setIsJoinCohortOpen] = useState<boolean>(false);
 
-  // Teams state initialized with MOCK_TEAMS and updated from database via /api/v1/admin/reports
-  const [teamsState, setTeamsState] = useState<Team[]>(MOCK_TEAMS);
+  // Teams state initialized from database via /api/v1/mentor/assign-project
+  const [teamsState, setTeamsState] = useState<Team[]>([]);
 
   // Student certificates uploaded or self-reported by students
   const [studentCerts, setStudentCerts] = useState<Certificate[]>([]);
@@ -217,7 +217,6 @@ export const MentorDashboard: React.FC = () => {
         console.error('Failed to load live teams in MentorDashboard:', err);
       }
     }
-    loadLiveTeams();
 
     async function loadCohortInfo() {
       try {
@@ -235,7 +234,6 @@ export const MentorDashboard: React.FC = () => {
         console.warn('Could not load faculty cohort info:', err);
       }
     }
-    loadCohortInfo();
 
     async function loadStudentCertificates() {
       try {
@@ -253,7 +251,9 @@ export const MentorDashboard: React.FC = () => {
         setCertLoading(false);
       }
     }
-    loadStudentCertificates();
+
+    // Parallel concurrent fetch pass
+    Promise.all([loadLiveTeams(), loadCohortInfo(), loadStudentCertificates()]);
   }, []);
 
   const handleRegenerateCode = async () => {
@@ -342,15 +342,6 @@ export const MentorDashboard: React.FC = () => {
         })
       );
 
-      // Sync with MOCK_TEAMS
-      const targetMock = MOCK_TEAMS.find((t) => t.id === targetTeamId);
-      if (targetMock) {
-        targetMock.members = targetMock.members.map((m) => ({
-          ...m,
-          role: (memberRoleMap[m.userId] === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
-        }));
-      }
-
       setNotificationBanner({
         type: 'success',
         message: `Activity roles updated and persisted for ${roleModalTeam.name}.`,
@@ -396,7 +387,7 @@ export const MentorDashboard: React.FC = () => {
     return true;
   });
 
-  const activeSelectedTeam = teamsState.find((t) => t.id === selectedTeamId) || teamsState[0] || MOCK_TEAMS[0];
+  const activeSelectedTeam = teamsState.find((t) => t.id === selectedTeamId) || teamsState[0];
 
   // Open Assign Modal for specific team
   const handleOpenAssignModal = (team?: Team) => {
@@ -730,6 +721,18 @@ export const MentorDashboard: React.FC = () => {
               className="border-indigo-200 hover:bg-indigo-50 text-indigo-900 font-semibold"
             >
               Upload Roster (Excel/PDF)
+            </Button>
+          </Link>
+
+          {/* Action 2.6: Mentee Personal Details Records (Roll Nos & Sign-off) */}
+          <Link href="/mentee-form">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<GraduationCap className="w-4 h-4 text-emerald-600" />}
+              className="border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-950 font-bold"
+            >
+              Mentee Records (Roll Nos)
             </Button>
           </Link>
 
@@ -2025,10 +2028,13 @@ export const MentorDashboard: React.FC = () => {
                     previewDocCert.externalFileUrl?.includes('unsplash') ||
                     previewDocCert.externalFileUrl?.match(/\.(jpeg|jpg|png|webp)($|\?)/i)) && (
                     <div className="mb-3 rounded-xl overflow-hidden border border-slate-200 max-h-72 flex items-center justify-center bg-white p-1">
-                      <img
-                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl}
+                      <Image
+                        src={previewDocCert.externalFileUrl || previewDocCert.uploadReceiptUrl || ''}
                         alt={previewDocCert.activityTitle}
-                        className="max-h-64 object-contain rounded-lg"
+                        width={500}
+                        height={300}
+                        unoptimized
+                        className="max-h-64 w-auto object-contain rounded-lg"
                       />
                     </div>
                   )}

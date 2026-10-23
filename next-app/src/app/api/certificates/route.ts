@@ -1,56 +1,68 @@
-import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import prisma from '@/lib/db/prisma';
 import type { Certificate } from '@/types';
-import { getOptionalSession } from '@/lib/auth/get-session';
-import { requireAuth } from '@/lib/auth/rbac';
-import { MOCK_CERTIFICATES } from '@/services/mockData';
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
+const getCertsQuerySchema = z
+  .object({
+    type: z.enum(['OFFICIAL', 'SELF_REPORTED']).optional(),
+    studentId: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => Math.min(Number(v) || 50, 50)),
+  })
+  .strict();
 
-    // 1. Try session user, then requireAuth, then fallback demo user
-    let user: any = await getOptionalSession().catch(() => null);
-    if (!user) {
-      try {
-        const authed = await requireAuth(request);
-        user = { id: authed.userId, role: authed.role, email: authed.email };
-      } catch {
-        user = { id: 'user-paras-shah', role: 'student', email: 'paras.shah@vit.edu.in' };
-      }
-    }
+const createCertSchema = z
+  .object({
+    activityTitle: z.string().min(1, 'Certificate title is required').max(255),
+    studentId: z.string().optional(),
+    type: z.enum(['PLATFORM_ISSUED', 'SELF_REPORTED']).optional(),
+    issueDate: z.string().optional(),
+    externalProvider: z.string().optional(),
+    fileUrl: z.string().url().optional(),
+    externalFileUrl: z.string().url().optional(),
+    verificationHash: z.string().optional(),
+  })
+  .strict();
+
+export const GET = apiRoute(
+  {
+    requireAuth: true,
+    rateLimit: { limit: 120, windowMs: 60000 },
+    querySchema: getCertsQuerySchema,
+  },
+  async ({ query, user, requestId }) => {
+    const limit = query.limit || 50;
 
     let whereClause: any = {};
-    if (user && user.role === 'student') {
-      whereClause.studentId = user.id;
+    if (user.role === 'student') {
+      whereClause.studentId = user.userId;
+    } else if (query.studentId) {
+      whereClause.studentId = query.studentId;
     }
 
-    // 2. Query certificates from database
-    let dbCerts: any[] = [];
-    try {
-      dbCerts = await prisma.certificate.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          student: { select: { id: true, name: true, email: true, institutionalId: true } },
-        },
-      });
-
-      if (dbCerts.length === 0) {
-        dbCerts = await prisma.certificate.findMany({
-          take: 20,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            student: { select: { id: true, name: true, email: true, institutionalId: true } },
-          },
-        });
-      }
-    } catch (dbErr) {
-      console.warn('[API certificates DB fallback]:', dbErr);
+    if (query.type === 'OFFICIAL') {
+      whereClause.type = 'platform_issued';
+    } else if (query.type === 'SELF_REPORTED') {
+      whereClause.type = 'self_reported';
     }
 
-    let mappedCerts: Certificate[] = dbCerts.map((c: any) => ({
+    const dbCerts = await prisma.certificate.findMany({
+      where: whereClause,
+      take: limit + 1,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        student: { select: { id: true, name: true, email: true, institutionalId: true } },
+      },
+    });
+
+    const hasMore = dbCerts.length > limit;
+    const paginated = hasMore ? dbCerts.slice(0, limit) : dbCerts;
+
+    const mappedCerts: Certificate[] = paginated.map((c: any) => ({
       id: c.id,
       studentId: c.studentId,
       studentName: c.student?.name || 'Student',
@@ -87,60 +99,37 @@ export async function GET(request: Request) {
           : undefined,
     }));
 
-    if (mappedCerts.length === 0) {
-      mappedCerts = [...MOCK_CERTIFICATES];
-    }
-
-    if (type === 'OFFICIAL') {
-      mappedCerts = mappedCerts.filter((c) => c.type === 'PLATFORM_ISSUED');
-    } else if (type === 'SELF_REPORTED') {
-      mappedCerts = mappedCerts.filter((c) => c.type === 'SELF_REPORTED');
-    }
-
-    return NextResponse.json({
-      success: true,
-      total: mappedCerts.length,
-      data: mappedCerts,
-    });
-  } catch (error: any) {
-    console.error('[API certificates error]:', error);
-    return NextResponse.json({
-      success: true,
-      total: MOCK_CERTIFICATES.length,
-      data: MOCK_CERTIFICATES,
+    return createSuccessResponse(mappedCerts, {
+      requestId,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor: hasMore ? mappedCerts[mappedCerts.length - 1]?.id : null,
+        total: mappedCerts.length,
+      },
     });
   }
-}
+);
 
-export async function POST(request: Request) {
-  try {
-    const sessionUser = await getOptionalSession().catch(() => null);
-    const body = await request.json();
-
-    if (!body.activityTitle || !body.activityTitle.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Certificate title is required' },
-        { status: 400 }
-      );
-    }
-
-    // Resolve student ID
-    let targetStudentId = sessionUser?.id || body.studentId;
-    if (!targetStudentId) {
-      const student =
-        (await prisma.user.findFirst({ where: { email: 'vedant.nikumbh@vit.edu.in' } })) ||
-        (await prisma.user.findFirst({ where: { role: 'student' } }));
-      targetStudentId = student?.id;
+export const POST = apiRoute(
+  {
+    requireAuth: true,
+    roles: ['student', 'coordinator', 'super_admin', 'industry_partner'],
+    idempotent: true,
+    rateLimit: { limit: 30, windowMs: 60000 },
+    bodySchema: createCertSchema,
+  },
+  async ({ body, user, requestId }) => {
+    let targetStudentId = user.userId;
+    if (user.role !== 'student' && body.studentId) {
+      targetStudentId = body.studentId;
     }
 
     if (!targetStudentId) {
-      return NextResponse.json(
-        { success: false, error: 'Could not associate certificate with a student account' },
-        { status: 400 }
-      );
+      return createErrorResponse('VALIDATION_ERROR', 'Target student ID is required', 422, requestId);
     }
 
-    const isPlatform = body.type === 'PLATFORM_ISSUED';
+    const isPlatform = body.type === 'PLATFORM_ISSUED' && user.role !== 'student';
     const randomHash = `sha256-${Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
 
     const created = await prisma.certificate.create({
@@ -150,7 +139,8 @@ export async function POST(request: Request) {
         type: isPlatform ? 'platform_issued' : 'self_reported',
         status: isPlatform ? 'issued' : 'posted',
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
-        externalProvider: body.externalProvider?.trim() || (isPlatform ? 'University Issued' : 'Self-Reported / External Authority'),
+        externalProvider:
+          body.externalProvider?.trim() || (isPlatform ? 'University Issued' : 'Self-Reported / External Authority'),
         externalFileUrl: body.fileUrl || body.externalFileUrl || null,
         verificationHash: body.verificationHash || randomHash,
       },
@@ -177,20 +167,6 @@ export async function POST(request: Request) {
           : undefined,
     };
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Certificate registered successfully in portfolio',
-        data: frontendCert,
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    console.error('[API create certificate error]:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to record certificate' },
-      { status: 500 }
-    );
+    return createSuccessResponse(frontendCert, { status: 201, requestId });
   }
-}
-
+);

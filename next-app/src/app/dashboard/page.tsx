@@ -1,27 +1,29 @@
-'use client';
-
-import React from 'react';
-import { useAppStore } from '@/store/appStore';
+import React, { Suspense } from 'react';
+import { getOptionalSession } from '@/lib/auth/get-session';
 import { StudentDashboard } from '@/screens/student/StudentDashboard';
 import { MentorDashboard } from '@/screens/mentor/MentorDashboard';
 import { DirectoryPermissions } from '@/screens/admin/DirectoryPermissions';
+import { DashboardSkeleton } from '@/components/common/DashboardSkeleton';
 
-export default function DashboardPage() {
-  const { currentUser } = useAppStore();
+export const metadata = {
+  title: 'Dashboard — VBridgeConnect',
+};
 
-  // Role-specific dashboard dispatch
-  if (currentUser.role === 'COORDINATOR') {
-    return <MentorDashboard />;
-  }
+export default async function DashboardPage() {
+  const sessionUser = await getOptionalSession();
+  const role = sessionUser?.role?.toLowerCase() || 'student';
 
-  if (currentUser.role === 'SUPER_ADMIN') {
-    return <DirectoryPermissions />;
-  }
-
-  if (currentUser.role === 'INDUSTRY_PARTNER') {
-    return <MentorDashboard />;
-  }
-
-  // Default: Student Dashboard
-  return <StudentDashboard />;
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      {role === 'coordinator' ? (
+        <MentorDashboard />
+      ) : role === 'super_admin' ? (
+        <DirectoryPermissions />
+      ) : role === 'industry_partner' ? (
+        <MentorDashboard />
+      ) : (
+        <StudentDashboard />
+      )}
+    </Suspense>
+  );
 }
