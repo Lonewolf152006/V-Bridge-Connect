@@ -165,7 +165,7 @@ export const RosterUploadScreen: React.FC = () => {
 
       const resolvedGuide = nameToVitEmail(guide);
       const students = rawStudentNames
-        .filter((s) => s.length >= 2)
+        .filter((s) => s.length >= 2 && !/^(na|n\/a|nil|-)$/i.test(s.trim()))
         .map((s, idx) => {
           const resolved = nameToVitEmail(s);
           return {
@@ -173,7 +173,8 @@ export const RosterUploadScreen: React.FC = () => {
             role: (idx === 0 ? 'student_lead' : 'student_member') as 'student_lead' | 'student_member',
             email: resolved.email || '',
           };
-        });
+        })
+        .filter((s) => Boolean(s.email));
 
       if (students.length > 0) {
         result.push({
