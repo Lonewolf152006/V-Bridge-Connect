@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NextResponse } from 'next/server';
 import { apiRoute, createSuccessResponse, createErrorResponse } from '@/lib/api/envelope';
 import prisma from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
@@ -76,7 +77,10 @@ export const GET = apiRoute(
 
     // Backwards compatible payload with both `data` and `users`
     const nextCursor = hasMore ? paginated[paginated.length - 1]?.id : null;
-    return createSuccessResponse(formatted, {
+    return NextResponse.json({
+      success: true,
+      data: formatted,
+      users: formatted,
       requestId,
       pagination: {
         limit,
@@ -84,6 +88,8 @@ export const GET = apiRoute(
         nextCursor,
         total: users.length,
       },
+    }, {
+      status: 200,
       headers: {
         'x-user-count': String(formatted.length),
       },
@@ -183,7 +189,12 @@ export const POST = apiRoute(
       avatarUrl: newUser.avatarUrl || '',
     };
 
-    return createSuccessResponse(userPayload, { status: 201, requestId });
+    return NextResponse.json({
+      success: true,
+      data: userPayload,
+      user: userPayload,
+      requestId,
+    }, { status: 201 });
   }
 );
 
@@ -252,17 +263,21 @@ export const PATCH = apiRoute(
       },
     });
 
-    return createSuccessResponse(
-      {
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        role: updated.role.toUpperCase(),
-        department: updated.department?.name || 'Electronics and Computer Science',
-        institutionalId: updated.institutionalId || updated.facultyCode || 'N/A',
-        avatarUrl: updated.avatarUrl || '',
-      },
-      { requestId }
-    );
+    const updatedPayload = {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role.toUpperCase(),
+      department: updated.department?.name || 'Electronics and Computer Science',
+      institutionalId: updated.institutionalId || updated.facultyCode || 'N/A',
+      avatarUrl: updated.avatarUrl || '',
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: updatedPayload,
+      user: updatedPayload,
+      requestId,
+    });
   }
 );

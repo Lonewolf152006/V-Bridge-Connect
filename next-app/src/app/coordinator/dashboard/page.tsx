@@ -9,7 +9,7 @@ export const metadata = {
 export default function CoordinatorDashboardPage() {
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      <MentorDashboard />
+      <MentorDashboard isIndustryExpert={false} />
     </Suspense>
   );
 }

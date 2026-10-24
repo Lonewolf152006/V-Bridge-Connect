@@ -281,19 +281,21 @@ async function main() {
       });
 
       // Update student user account with Electronics and Computer Science department
+      const existingUser = await prisma.user.findUnique({ where: { email: resolved.email } });
       await prisma.user.upsert({
         where: { email: resolved.email },
         update: {
           name: resolved.normalizedName,
           role: 'student',
           departmentId: department.id,
+          ...(!existingUser?.passwordHash ? { passwordHash: defaultPasswordHash } : {}),
         },
         create: {
           email: resolved.email,
           name: resolved.normalizedName,
           role: 'student',
           departmentId: department.id,
-          passwordHash: null,
+          passwordHash: defaultPasswordHash,
         },
       });
 

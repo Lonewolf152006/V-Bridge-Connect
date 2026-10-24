@@ -80,9 +80,19 @@ const PROJECT_TOPIC_PRESETS = [
   },
 ];
 
-export const MentorDashboard: React.FC = () => {
+export interface MentorDashboardProps {
+  isIndustryExpert?: boolean;
+}
+
+export const MentorDashboard: React.FC<MentorDashboardProps> = ({
+  isIndustryExpert: propIsIndustryExpert,
+}) => {
   const { currentUser } = useAppStore();
-  const isIndustryExpert = currentUser.role === 'INDUSTRY_PARTNER';
+  const isIndustryExpert =
+    propIsIndustryExpert !== undefined
+      ? propIsIndustryExpert
+      : currentUser?.role === 'INDUSTRY_PARTNER' ||
+        (currentUser?.role as string)?.toLowerCase() === 'industry_partner';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
@@ -184,7 +194,8 @@ export const MentorDashboard: React.FC = () => {
               members: (() => {
                 const seen = new Set<string>();
                 return (t.members || []).reduce((acc: any[], m: any) => {
-                  const uid = m.user?.id || m.id;
+                  if (!m) return acc;
+                  const uid = m?.user?.id || m?.userId || m?.id;
                   if (!uid || seen.has(uid)) return acc;
                   seen.add(uid);
                   acc.push({
@@ -193,12 +204,12 @@ export const MentorDashboard: React.FC = () => {
                     joinedAt: new Date().toISOString(),
                     user: {
                       id: uid,
-                      name: m.user?.name || 'Student Member',
-                      email: m.user?.email || 'student@vit.edu.in',
+                      name: m?.user?.name || m?.name || 'Student Member',
+                      email: m?.user?.email || m?.email || 'student@vit.edu.in',
                       role: 'STUDENT',
                       department: 'Electronics and Computer Science',
                       avatarUrl: '',
-                      institutionalId: m.user?.institutionalId || '24108B',
+                      institutionalId: m?.user?.institutionalId || m?.institutionalId || '24108B',
                       isOnline: true,
                     },
                   });
@@ -253,8 +264,12 @@ export const MentorDashboard: React.FC = () => {
     }
 
     // Parallel concurrent fetch pass
-    Promise.all([loadLiveTeams(), loadCohortInfo(), loadStudentCertificates()]);
-  }, []);
+    if (isIndustryExpert) {
+      Promise.all([loadLiveTeams(), loadCohortInfo()]);
+    } else {
+      Promise.all([loadLiveTeams(), loadCohortInfo(), loadStudentCertificates()]);
+    }
+  }, [isIndustryExpert]);
 
   const handleRegenerateCode = async () => {
     setIsRegeneratingCode(true);
@@ -289,8 +304,10 @@ export const MentorDashboard: React.FC = () => {
   const handleOpenRoleModal = (team: Team) => {
     setRoleModalTeam(team);
     const initialMap: Record<string, 'LEAD' | 'CONTRIBUTOR'> = {};
-    team.members.forEach((m) => {
-      initialMap[m.userId] = m.role || 'CONTRIBUTOR';
+    (team.members || []).filter(Boolean).forEach((m) => {
+      if (m?.userId) {
+        initialMap[m.userId] = m.role || 'CONTRIBUTOR';
+      }
     });
     setMemberRoleMap(initialMap);
     setIsRoleModalOpen(true);
@@ -332,10 +349,12 @@ export const MentorDashboard: React.FC = () => {
       setTeamsState((prev) =>
         prev.map((t) => {
           if (t.id === targetTeamId) {
-            const updatedMembers = (t.members || []).map((m) => ({
-              ...m,
-              role: (memberRoleMap[m.userId] === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
-            }));
+            const updatedMembers = (t.members || [])
+              .filter(Boolean)
+              .map((m) => ({
+                ...m,
+                role: (m?.userId && memberRoleMap[m.userId] === 'LEAD' ? 'LEAD' : 'CONTRIBUTOR') as TeamMemberRole,
+              }));
             return { ...t, members: updatedMembers };
           }
           return t;
@@ -759,27 +778,21 @@ export const MentorDashboard: React.FC = () => {
               Discussions
             </Button>
           </Link>
-          <Link href="/coordinator/grading">
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<ClipboardCheck className="w-4 h-4" />}
-            >
-              Grade (1 pending)
-            </Button>
-          </Link>
 
-          {/* Action: Student Certificates & Proofs */}
-          <a href="#student-certificates">
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Award className="w-4 h-4 text-purple-600" />}
-              className="border-purple-200 hover:bg-purple-50 text-purple-900 font-semibold"
-            >
-              Student Certificates ({studentCerts.length})
-            </Button>
-          </a>
+
+          {/* Action: Student Certificates & Proofs (Only for Faculty Mentors / Coordinators) */}
+          {!isIndustryExpert && (
+            <a href="#student-certificates">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Award className="w-4 h-4 text-purple-600" />}
+                className="border-purple-200 hover:bg-purple-50 text-purple-900 font-semibold"
+              >
+                Student Certificates ({studentCerts.length})
+              </Button>
+            </a>
+          )}
 
           {isIndustryExpert && (
             <Button
@@ -916,9 +929,12 @@ export const MentorDashboard: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {teams.map((team) => {
-                const membersList = team.members || [];
-                const leadMember = membersList.find((m) => m.role === 'LEAD') || membersList[0];
-                const otherMembers = membersList.filter((m) => m.userId !== leadMember?.userId);
+                const membersList = (team.members || []).filter((m): m is NonNullable<typeof m> => Boolean(m));
+                const leadMember = membersList.find((m) => m?.role === 'LEAD') || membersList[0];
+                const leadUserId = leadMember?.userId;
+                const otherMembers = membersList.filter((m) => Boolean(m) && m.userId !== leadUserId);
+                const hasStudents = membersList.length > 0;
+                const leadName = leadMember?.user?.name || (leadMember as any)?.name || 'Student Lead';
 
                 return (
                   <tr key={team.id} className="hover:bg-slate-50/70 transition-colors">
@@ -984,30 +1000,56 @@ export const MentorDashboard: React.FC = () => {
 
                     {/* Team Members */}
                     <td className="px-5 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <InitialsAvatar name={leadMember.user.name} size="xs" />
-                          <span className="font-bold text-slate-900 text-xs">
-                            {leadMember.user.name}
-                          </span>
-                          <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.2 rounded">
-                            LEAD
-                          </span>
-                          <button
-                            onClick={() => handleOpenRoleModal(team)}
-                            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 cursor-pointer"
-                            title="Assign & manage activity roles"
-                          >
-                            Roles
-                          </button>
+                      {hasStudents ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <InitialsAvatar name={leadName} size="xs" />
+                            <span className="font-bold text-slate-900 text-xs">
+                              {leadName}
+                            </span>
+                            <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.2 rounded">
+                              LEAD
+                            </span>
+                            {!isIndustryExpert && (
+                              <button
+                                onClick={() => handleOpenRoleModal(team)}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 cursor-pointer"
+                                title="Assign & manage activity roles"
+                              >
+                                Roles
+                              </button>
+                            )}
+                          </div>
+                          {otherMembers.length > 0 && (
+                            <div className="flex items-center gap-1 pl-6 text-[11px] text-slate-500">
+                              <span>+ {otherMembers.length} students:</span>
+                              <span className="truncate max-w-xs">
+                                {otherMembers
+                                  .map((m) =>
+                                    m?.user?.name
+                                      ? m.user.name.split(' ')[0]
+                                      : (m as any)?.name
+                                      ? (m as any).name.split(' ')[0]
+                                      : 'Member'
+                                  )
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 pl-6 text-[11px] text-slate-500">
-                          <span>+ {otherMembers.length} students:</span>
-                          <span className="truncate max-w-xs">
-                            {otherMembers.map((m) => m.user.name.split(' ')[0]).join(', ')}
-                          </span>
+                      ) : (
+                        <div className="flex items-center gap-2 text-slate-400 text-xs italic">
+                          <span>No students assigned</span>
+                          {!isIndustryExpert && (
+                            <button
+                              onClick={() => handleOpenRoleModal(team)}
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer not-italic"
+                            >
+                              Assign Members
+                            </button>
+                          )}
                         </div>
-                      </div>
+                      )}
                     </td>
 
                     {/* Current Stage */}
@@ -1061,9 +1103,9 @@ export const MentorDashboard: React.FC = () => {
                           </Button>
                         </Link>
 
-                        <Link href="/coordinator/grading">
-                          <Button variant="outline" size="sm" leftIcon={<ClipboardCheck className="w-3.5 h-3.5" />}>
-                            Evaluate
+                        <Link href={`/projects/${team.id}?tab=review2`}>
+                          <Button variant="outline" size="sm" leftIcon={<ClipboardCheck className="w-3.5 h-3.5 text-indigo-600" />}>
+                            Review-2 Form
                           </Button>
                         </Link>
                       </div>
@@ -1076,65 +1118,11 @@ export const MentorDashboard: React.FC = () => {
         </div>
       </Card>
 
-      {/* ─── Pending Deliverables for Rubric Evaluation ─── */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 font-display">
-              Submissions Ready for Rubric Grading
-            </h2>
-            <p className="text-xs text-slate-500">
-              Student submissions awaiting mentor evaluation and accreditation evidence sign-off
-            </p>
-          </div>
-          <Link
-            href="/coordinator/grading"
-            className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1"
-          >
-            <span>Open grading console</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
 
-        <Card padding="md" className="border-indigo-100 bg-indigo-50/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-600 text-white flex-shrink-0 shadow-sm shadow-indigo-300">
-                <ClipboardCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-indigo-900">
-                    Mini 6 • Prototype Submission & Demo Recording
-                  </span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
-                    Deliverable Submitted
-                  </span>
-                </div>
-                <h4 className="text-sm font-bold text-slate-900 mt-0.5">
-                  Milestone 2: Working Prototype & Code Repository
-                </h4>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Submitted by Yash Sachin Khanvilkar with GitHub repository link and 5-minute video presentation.
-                </p>
-              </div>
-            </div>
 
-            <Link href="/coordinator/grading" className="flex-shrink-0">
-              <Button
-                variant="primary"
-                size="sm"
-                rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-              >
-                Inspect Rubric & Grade
-              </Button>
-            </Link>
-          </div>
-        </Card>
-      </div>
-
-      {/* ─── Student Certificates & Credentials Portfolio Section ─── */}
-      <div id="student-certificates" className="space-y-4 pt-2">
+      {/* ─── Student Certificates & Credentials Portfolio Section (Only for Faculty Mentors, NOT Industry Experts) ─── */}
+      {!isIndustryExpert && (
+        <div id="student-certificates" className="space-y-4 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -1342,6 +1330,7 @@ export const MentorDashboard: React.FC = () => {
           </div>
         </Card>
       </div>
+      )}
 
       {/* ═════════════════════════════════════════════════════════════════════
           MODAL 1: ASSIGN PROJECT (BOTH MENTOR & INDUSTRY EXPERT)
@@ -1385,13 +1374,13 @@ export const MentorDashboard: React.FC = () => {
             {/* Students List under the chosen group */}
             <div className="text-[11px] text-indigo-900/90 pt-1 border-t border-indigo-100 flex flex-wrap gap-2 items-center">
               <span className="font-semibold text-slate-500">Students under this group:</span>
-              {(activeSelectedTeam?.members || []).map((m) => (
+              {(activeSelectedTeam?.members || []).filter(Boolean).map((m, idx) => (
                 <span
-                  key={m.userId}
+                  key={m?.userId || idx}
                   className="bg-white/80 border border-indigo-200/80 px-2 py-0.5 rounded-md font-medium text-slate-800 inline-flex items-center gap-1"
                 >
-                  <span>{m.user.name}</span>
-                  {m.role === 'LEAD' && (
+                  <span>{m?.user?.name || (m as any)?.name || 'Student'}</span>
+                  {m?.role === 'LEAD' && (
                     <span className="text-[9px] bg-indigo-600 text-white font-bold px-1 rounded">
                       LEAD
                     </span>
@@ -1906,21 +1895,24 @@ export const MentorDashboard: React.FC = () => {
               </p>
 
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-slate-50/50">
-                {(roleModalTeam.members || []).map((m) => {
-                  const currentAssigned = memberRoleMap[m.userId] || 'CONTRIBUTOR';
+                {(roleModalTeam.members || []).filter(Boolean).map((m, idx) => {
+                  const mId = m?.userId || (m as any)?.id || `m-${idx}`;
+                  const currentAssigned = memberRoleMap[mId] || 'CONTRIBUTOR';
+                  const studentName = m?.user?.name || (m as any)?.name || 'Student';
+                  const studentEmail = m?.user?.email || (m as any)?.email || 'N/A';
                   return (
                     <div
-                      key={m.userId}
+                      key={mId}
                       className="p-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50/80 transition-colors"
                     >
                       <div className="flex items-center gap-2.5">
-                        <InitialsAvatar name={m.user.name} size="sm" />
+                        <InitialsAvatar name={studentName} size="sm" />
                         <div>
                           <div className="font-bold text-slate-900 text-xs">
-                            {m.user.name}
+                            {studentName}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono">
-                            {m.user.email}
+                            {studentEmail}
                           </div>
                         </div>
                       </div>
@@ -1938,7 +1930,7 @@ export const MentorDashboard: React.FC = () => {
                                   updated[k] = 'CONTRIBUTOR';
                                 });
                               }
-                              updated[m.userId] = newRole;
+                              updated[mId] = newRole;
                               return updated;
                             });
                           }}

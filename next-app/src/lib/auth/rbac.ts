@@ -16,7 +16,9 @@ export type Role = 'student' | 'coordinator' | 'industry_partner' | 'super_admin
  * Throws 403 if not.
  */
 export function assertRole(user: TokenPayload, ...allowedRoles: Role[]): void {
-  if (!allowedRoles.includes(user.role as Role)) {
+  const userRole = (user.role || '').toLowerCase();
+  const allowed = allowedRoles.map((r) => r.toLowerCase());
+  if (!allowed.includes(userRole)) {
     throw new AuthError(
       `Role "${user.role}" is not authorized for this action. Required: ${allowedRoles.join(', ')}`,
       403

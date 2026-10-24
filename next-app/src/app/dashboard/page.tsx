@@ -16,11 +16,11 @@ export default async function DashboardPage() {
   return (
     <Suspense fallback={<DashboardSkeleton />}>
       {role === 'coordinator' ? (
-        <MentorDashboard />
+        <MentorDashboard isIndustryExpert={false} />
       ) : role === 'super_admin' ? (
         <DirectoryPermissions />
       ) : role === 'industry_partner' ? (
-        <MentorDashboard />
+        <MentorDashboard isIndustryExpert={true} />
       ) : (
         <StudentDashboard />
       )}

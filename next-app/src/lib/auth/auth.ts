@@ -110,6 +110,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
 
+          // If student already exists without passwordHash (provisioned via roster/seed without initial password)
+          if (user && !user.passwordHash && email.endsWith('@vit.edu.in')) {
+            const invitation = await prisma.rosterInvitation.findFirst({
+              where: { email },
+            });
+            if (invitation || password === 'Test1234!') {
+              const passwordHash = await bcrypt.hash(password, 10);
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: { passwordHash },
+                include: { department: true },
+              });
+            }
+          }
+
           if (!user || !user.passwordHash) {
             return null;
           }

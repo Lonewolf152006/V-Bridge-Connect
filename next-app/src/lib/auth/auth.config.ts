@@ -71,17 +71,54 @@ export const authConfig: NextAuthConfig = {
     },
 
     async redirect({ url, baseUrl }) {
-      if (url.startsWith('/')) return url;
+      // Allows relative callback URLs
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
       try {
         const parsed = new URL(url);
-        if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
-          return `${parsed.pathname}${parsed.search}`;
-        }
         if (parsed.origin === baseUrl) return url;
+        if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+          return `${baseUrl}${parsed.pathname}${parsed.search}`;
+        }
       } catch {
-        return url;
+        return baseUrl;
       }
-      return url;
+      return baseUrl;
+    },
+
+    async jwt({ token, user, account }: any) {
+      if (user) {
+        token.userId = user.id;
+        token.role = user.role || token.role || 'student';
+        token.departmentId = user.departmentId ?? token.departmentId;
+        token.departmentName = user.departmentName ?? token.departmentName;
+        token.institutionalId = user.institutionalId ?? token.institutionalId;
+        token.avatarUrl = user.avatarUrl || user.image || token.avatarUrl;
+      }
+      if (account?.provider === 'github' && account.access_token) {
+        token.githubAccessToken = account.access_token;
+      }
+      if (account?.provider === 'google' && account.access_token) {
+        token.googleAccessToken = account.access_token;
+        if (account.refresh_token) {
+          token.googleRefreshToken = account.refresh_token as string;
+        }
+      }
+      return token;
+    },
+
+    async session({ session, token }: any) {
+      if (token && session?.user) {
+        if (token.userId) session.user.id = token.userId as string;
+        if (token.role) session.user.role = token.role;
+        session.user.departmentId = token.departmentId ?? null;
+        session.user.departmentName = token.departmentName ?? null;
+        session.user.institutionalId = token.institutionalId ?? null;
+        session.user.avatarUrl = token.avatarUrl ?? null;
+        if (token.googleAccessToken) {
+          session.googleAccessToken = token.googleAccessToken;
+        }
+      }
+      return session;
     },
   },
 

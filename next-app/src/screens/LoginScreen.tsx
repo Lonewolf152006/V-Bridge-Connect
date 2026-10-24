@@ -56,6 +56,11 @@ export const LoginScreen: React.FC = () => {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<LoginTab>('INSTITUTIONAL');
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form states — initialized empty (no autofill)
   const [email, setEmail] = useState('');
@@ -82,11 +87,13 @@ export const LoginScreen: React.FC = () => {
       return;
     }
 
+    let signInResult: any = null;
     try {
-      const signInResult = await nextAuthSignIn('credentials', {
+      signInResult = await nextAuthSignIn('credentials', {
         email: cleanEmail,
         password,
         redirect: false,
+        callbackUrl: '/dashboard',
       });
 
       if (signInResult?.error) {
@@ -94,7 +101,25 @@ export const LoginScreen: React.FC = () => {
         setLoading(false);
         return;
       }
+    } catch (err: any) {
+      // In NextAuth v5 beta, `new URL(data.url)` can throw if a relative redirect was returned.
+      // Verify whether the session was successfully established before failing.
+      try {
+        const checkRes = await fetch('/api/auth/session');
+        const checkData = await checkRes.json();
+        if (!checkData?.user) {
+          setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
+          setLoading(false);
+          return;
+        }
+      } catch {
+        setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
+        setLoading(false);
+        return;
+      }
+    }
 
+    try {
       // If faculty invite code was supplied, link to cohort
       if (facultyCode.trim()) {
         try {
@@ -124,7 +149,7 @@ export const LoginScreen: React.FC = () => {
 
       window.location.href = targetRoute;
     } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
+      setErrorMessage(err.message || 'Authentication succeeded, but redirect failed. Please refresh.');
       setLoading(false);
     }
   };
@@ -226,6 +251,33 @@ export const LoginScreen: React.FC = () => {
                 </div>
                 Sign in with your official <code className="text-indigo-600 font-mono font-bold">@vit.edu.in</code> student
                 or faculty mentor address. Teams and cohorts are securely loaded upon authentication.
+                {mounted && (
+                  <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-500">Quick Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('vedant.nikumbh@vit.edu.in');
+                        setPassword('Test1234!');
+                        setErrorMessage(null);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-white hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold border border-indigo-200 transition-colors shadow-2xs"
+                    >
+                      Student (Vedant)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('sheetal.patil@vit.edu.in');
+                        setPassword('Test1234!');
+                        setErrorMessage(null);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-white hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold border border-indigo-200 transition-colors shadow-2xs"
+                    >
+                      Faculty Guide (Dr. Sheetal Patil)
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -288,6 +340,22 @@ export const LoginScreen: React.FC = () => {
                   <span>Central Superadmin Console</span>
                 </div>
                 Platform Governance & Accreditation oversight. Access directory management, role controls, and system audit logs with authorized credentials.
+                {mounted && (
+                  <div className="mt-2.5 pt-2 border-t border-purple-200/80 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-purple-500">Quick Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('admin@vbridge.com');
+                        setPassword('admin123');
+                        setErrorMessage(null);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-white hover:bg-purple-100 text-purple-800 text-[11px] font-semibold border border-purple-200 transition-colors shadow-2xs"
+                    >
+                      Superadmin (admin@vbridge.com)
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -351,6 +419,22 @@ export const LoginScreen: React.FC = () => {
                   <span>Industry Expert & Corporate Portal</span>
                 </div>
                 External co-mentors and enterprise partners guide capstone groups and offer industry opportunities.
+                {mounted && (
+                  <div className="mt-2.5 pt-2 border-t border-amber-200/80 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-600">Quick Fill:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('expert@industry.com');
+                        setPassword('expert123');
+                        setErrorMessage(null);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-amber-900 text-[11px] font-semibold border border-amber-200 transition-colors shadow-2xs"
+                    >
+                      Industry Expert (expert@industry.com)
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* External OAuth Buttons */}

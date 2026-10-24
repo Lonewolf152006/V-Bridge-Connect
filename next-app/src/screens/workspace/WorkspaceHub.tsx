@@ -151,14 +151,30 @@ export const WorkspaceHub: React.FC = () => {
               })(),
               createdAt: new Date().toISOString(),
             }));
-            setTeamsState(mapped);
+            let finalTeams = mapped;
+            if (currentUser.role === 'STUDENT') {
+              const myTeams = mapped.filter((t: any) =>
+                (t.members || []).some(
+                  (m: any) =>
+                    m.userId === currentUser.id ||
+                    (currentUser.email && m.user?.email?.toLowerCase() === currentUser.email?.toLowerCase())
+                )
+              );
+              if (myTeams.length > 0) {
+                finalTeams = myTeams;
+              }
+            }
+            setTeamsState(finalTeams);
             // Update selectedTeamId to use the real UUID
             const slugNorm = (s: string) => s.replace(/^team-/i, '').replace(/-/g, ' ').trim().toLowerCase();
-            const match = mapped.find((t: any) => t.id === teamId) ||
-              mapped.find((t: any) => teamId && t.name.toLowerCase() === slugNorm(teamId)) ||
-              mapped.find((t: any) => t.id === selectedTeamId) ||
-              mapped.find((t: any) => selectedTeamId && t.name.toLowerCase() === slugNorm(selectedTeamId)) ||
-              mapped[0];
+            const match =
+              (currentUser.role === 'STUDENT' && finalTeams.length > 0)
+                ? finalTeams[0]
+                : mapped.find((t: any) => t.id === teamId) ||
+                  mapped.find((t: any) => teamId && t.name.toLowerCase() === slugNorm(teamId)) ||
+                  mapped.find((t: any) => t.id === selectedTeamId) ||
+                  mapped.find((t: any) => selectedTeamId && t.name.toLowerCase() === slugNorm(selectedTeamId)) ||
+                  mapped[0];
             if (match) setSelectedTeamId(match.id);
           }
         }
@@ -195,6 +211,15 @@ export const WorkspaceHub: React.FC = () => {
   // Match team by UUID, exact name, or slug (e.g. 'team-mini-6' → 'mini 6')
   const normalizeSlug = (s: string) => s.replace(/^team-/i, '').replace(/-/g, ' ').trim().toLowerCase();
   const currentTeam =
+    (currentUser.role === 'STUDENT'
+      ? teamsState.find((t) =>
+          (t.members || []).some(
+            (m) =>
+              m.userId === currentUser.id ||
+              (currentUser.email && m.user?.email?.toLowerCase() === currentUser.email?.toLowerCase())
+          )
+        ) || teamsState[0]
+      : null) ||
     teamsState.find((t) => t.id === selectedTeamId) ||
     teamsState.find((t) => t.id === teamId) ||
     teamsState.find((t) => teamId && t.name.toLowerCase() === normalizeSlug(teamId)) ||
@@ -445,7 +470,6 @@ export const WorkspaceHub: React.FC = () => {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'milestones', label: 'Milestones & Deliverables' },
-    { id: 'repository', label: 'Repository & PRs' },
     { id: 'meetings', label: 'Mentor Sync & Meet' },
     { id: 'review2', label: 'TE Review-2 Form' },
   ];
@@ -494,25 +518,32 @@ export const WorkspaceHub: React.FC = () => {
                 ID: {currentTeam.id}
               </span>
 
-              {/* Switch Group Switcher */}
-              <div className="flex items-center gap-1.5 bg-indigo-50/80 hover:bg-indigo-100/80 px-3 py-1 rounded-xl border border-indigo-200/80 transition-colors shadow-2xs">
-                <Users className="w-3.5 h-3.5 text-indigo-600" />
-                <span className="text-xs font-semibold text-indigo-900">Switch Group:</span>
-                <select
-                  value={currentTeam.id}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="bg-transparent font-bold text-indigo-900 text-xs focus:outline-none cursor-pointer"
-                >
-                  {teamsState.map((t) => {
-                    const lead = (t.members || []).find((m) => m.role === 'LEAD')?.user.name.split(' ')[0] || 'Team';
-                    return (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({lead}&apos;s Group)
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+              {/* Switch Group Switcher - Only visible to Faculty / Industry Mentors / Admins */}
+              {currentUser.role !== 'STUDENT' && teamsState.length > 1 && (
+                <div className="flex items-center gap-1.5 bg-indigo-50/80 hover:bg-indigo-100/80 px-3 py-1 rounded-xl border border-indigo-200/80 transition-colors shadow-2xs">
+                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="text-xs font-semibold text-indigo-900">Switch Group:</span>
+                  <select
+                    value={currentTeam.id}
+                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    className="bg-transparent font-bold text-indigo-900 text-xs focus:outline-none cursor-pointer"
+                  >
+                    {teamsState.map((t) => {
+                      const lead = (t.members || []).find((m) => m.role === 'LEAD')?.user?.name?.split(' ')[0] || 'Team';
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({lead}&apos;s Group)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+              {currentUser.role === 'STUDENT' && (
+                <span className="text-xs font-semibold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
+                  Your Team
+                </span>
+              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
@@ -710,11 +741,14 @@ export const WorkspaceHub: React.FC = () => {
                       </Button>
                     </Link>
                   ) : currentUser.role === 'COORDINATOR' ? (
-                    <Link href="/coordinator/grading">
-                      <Button variant="primary" size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-                        Review & Grade
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setActiveTab('review2')}
+                      className="bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      TE Review-2 Evaluation
+                    </Button>
                   ) : (
                     <Button variant="outline" size="sm" onClick={() => setActiveTab('milestones')}>
                       View Milestone
@@ -814,10 +848,10 @@ export const WorkspaceHub: React.FC = () => {
                       className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <InitialsAvatar name={m.user.name} size="sm" />
+                        <InitialsAvatar name={m.user?.name || 'Student'} size="sm" />
                         <div className="truncate">
-                          <div className="font-semibold text-slate-900 truncate">{m.user.name}</div>
-                          <div className="text-[10px] text-slate-400 font-mono truncate">{m.user.email}</div>
+                          <div className="font-semibold text-slate-900 truncate">{m.user?.name || 'Student'}</div>
+                          <div className="text-[10px] text-slate-400 font-mono truncate">{m.user?.email || ''}</div>
                         </div>
                       </div>
                       <span

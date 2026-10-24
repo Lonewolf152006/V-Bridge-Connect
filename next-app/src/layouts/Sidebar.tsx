@@ -68,7 +68,7 @@ const NAV_ITEMS: SidebarItem[] = [
     label: 'Certificates & Ledger',
     to: '/certificates',
     icon: Award,
-    roles: ['STUDENT', 'COORDINATOR', 'SUPER_ADMIN', 'INDUSTRY_PARTNER'],
+    roles: ['STUDENT', 'COORDINATOR', 'SUPER_ADMIN'],
   },
   {
     label: 'Messages',
@@ -76,12 +76,7 @@ const NAV_ITEMS: SidebarItem[] = [
     icon: MessageSquare,
     roles: ['STUDENT', 'COORDINATOR', 'INDUSTRY_PARTNER'],
   },
-  {
-    label: 'Rubric Grading',
-    to: '/coordinator/grading',
-    icon: ClipboardCheck,
-    roles: ['COORDINATOR'],
-  },
+
   {
     label: 'Institutional Reports',
     to: '/admin/reports',
