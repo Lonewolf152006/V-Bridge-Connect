@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { signIn as nextAuthSignIn } from 'next-auth/react';
+import { signIn as nextAuthSignIn, getCsrfToken } from 'next-auth/react';
 import { useAppStore } from '@store/appStore';
 import type { UserRole } from '@/types';
 import { Button } from '@components/common/Button';
@@ -89,9 +89,11 @@ export const LoginScreen: React.FC = () => {
 
     let signInResult: any = null;
     try {
+      const csrfToken = await getCsrfToken();
       signInResult = await nextAuthSignIn('credentials', {
         email: cleanEmail,
         password,
+        csrfToken: csrfToken || undefined,
         redirect: false,
         callbackUrl: '/dashboard',
       });

@@ -3,6 +3,7 @@
 // Does NOT import Prisma, bcrypt, or nodemailer so middleware runs without Node native module errors.
 
 import type { NextAuthConfig } from 'next-auth';
+import { skipCSRFCheck } from '@auth/core';
 
 // Sanitize localhost NEXTAUTH_URL on Vercel/production so NextAuth never redirects to localhost
 if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
@@ -22,6 +23,7 @@ if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
 }
 
 export const authConfig: NextAuthConfig = {
+  skipCSRFCheck,
   trustHost: true,
   session: { strategy: 'jwt' },
 
