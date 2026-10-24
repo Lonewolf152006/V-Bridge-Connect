@@ -100,10 +100,6 @@ Vercel Cron is declared in `vercel.json` and runs automatic maintenance:
     {
       "path": "/api/cron/inactivity-check",
       "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup",
-      "schedule": "0 2 * * 0"
     }
   ]
 }

@@ -69,6 +69,14 @@ async function handleInactivityCheck(request: NextRequest): Promise<NextResponse
       });
     }
 
+    // 3. Maintenance sweep: Clean up expired idempotency records and old rate limit records
+    await prisma.idempotencyRecord.deleteMany({
+      where: { expiresAt: { lt: now } },
+    });
+    await prisma.rateLimitRecord.deleteMany({
+      where: { resetAt: { lt: new Date(Date.now() - 60 * 60 * 1000) } },
+    });
+
     const durationMs = Number((performance.now() - startTime).toFixed(2));
 
     return NextResponse.json({

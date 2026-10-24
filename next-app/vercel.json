@@ -4,15 +4,11 @@
   "crons": [
     {
       "path": "/api/cron/overdue-milestones",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/inactivity-check",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/cleanup",
-      "schedule": "0 2 * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
