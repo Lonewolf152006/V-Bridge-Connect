@@ -13,6 +13,23 @@ import type { UserRole } from '@prisma/client';
 import { rosterService } from '@/lib/modules/roster/roster.service';
 import { authConfig } from './auth.config';
 
+// Sanitize localhost NEXTAUTH_URL on Vercel/production so NextAuth never redirects to localhost
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  if (
+    process.env.NEXTAUTH_URL &&
+    (process.env.NEXTAUTH_URL.includes('localhost') || process.env.NEXTAUTH_URL.includes('127.0.0.1'))
+  ) {
+    process.env.NEXTAUTH_URL = 'https://v-bridge-connect.vercel.app';
+  }
+  if (
+    process.env.AUTH_URL &&
+    (process.env.AUTH_URL.includes('localhost') || process.env.AUTH_URL.includes('127.0.0.1'))
+  ) {
+    process.env.AUTH_URL = 'https://v-bridge-connect.vercel.app';
+  }
+  process.env.AUTH_TRUST_HOST = 'true';
+}
+
 // Augment NextAuth types to include our custom fields
 declare module 'next-auth' {
   interface User {
@@ -261,6 +278,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    ...authConfig.callbacks,
   },
 });

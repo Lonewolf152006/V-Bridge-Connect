@@ -96,7 +96,10 @@ export const LoginScreen: React.FC = () => {
         callbackUrl: '/dashboard',
       });
 
-      if (signInResult?.error) {
+      if (
+        signInResult?.error ||
+        (signInResult?.url && (signInResult.url.includes('error=') || signInResult.url.includes('/login?error')))
+      ) {
         setErrorMessage('Invalid institutional credentials. Please check your email and password.');
         setLoading(false);
         return;
@@ -136,7 +139,14 @@ export const LoginScreen: React.FC = () => {
       // Query real session to determine role-based destination
       const sessionRes = await fetch('/api/auth/session');
       const sessionData = await sessionRes.json();
-      const role = sessionData?.user?.role?.toLowerCase();
+      
+      if (!sessionData?.user) {
+        setErrorMessage('Invalid institutional credentials. Please verify your email and password.');
+        setLoading(false);
+        return;
+      }
+
+      const role = sessionData.user.role?.toLowerCase();
 
       let targetRoute = '/dashboard';
       if (role === 'super_admin') {

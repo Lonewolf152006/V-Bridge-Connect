@@ -46,3 +46,6 @@ credentials*.json
 # Agent skills cache
 .agents/
 skills-lock.json
+
+.vercel
+.env*
