@@ -13,13 +13,16 @@ const postCertificateSchema = z
     studentId: z.string().optional(),
     activityTitle: z.string().optional(),
     externalProvider: z.string().optional(),
-    externalFileUrl: z.string().url().optional(),
+    externalFileUrl: z.string().optional(),
+    fileUrl: z.string().optional(),
+    credentialUrl: z.string().optional(),
+    fileName: z.string().optional(),
     issueDate: z.string().optional(),
     expiryDate: z.string().optional(),
     credentialId: z.string().optional(),
-    verificationUrl: z.string().url().optional(),
+    verificationUrl: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 const getCertificatesQuerySchema = z
   .object({

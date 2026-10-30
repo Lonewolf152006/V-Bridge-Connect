@@ -167,13 +167,54 @@ export const CertificateHub: React.FC = () => {
     try {
       setIsUploading(true);
 
+      let uploadedFileUrl: string | undefined = credentialUrl.trim() || undefined;
+
+      // 1. Direct AWS S3 presigned upload if a physical file was selected
+      if (selectedFile) {
+        try {
+          const presignedRes = await fetch('/api/v1/uploads/certificate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: selectedFile.name,
+              contentType: selectedFile.type || 'application/pdf',
+              fileSizeBytes: selectedFile.size,
+            }),
+          });
+
+          if (presignedRes.ok) {
+            const presignedData = await presignedRes.json();
+            const { uploadUrl, publicUrl } = presignedData.data || {};
+            if (uploadUrl) {
+              const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: selectedFile,
+                headers: {
+                  'Content-Type': selectedFile.type || 'application/pdf',
+                },
+              });
+              if (uploadRes.ok) {
+                uploadedFileUrl = publicUrl;
+              }
+            }
+          }
+        } catch (s3Err) {
+          console.warn('Presigned S3 upload skipped, using fallback:', s3Err);
+        }
+
+        if (!uploadedFileUrl && fileDataUrl) {
+          uploadedFileUrl = fileDataUrl;
+        }
+      }
+
       const payload = {
         activityTitle: title.trim(),
         externalProvider: provider.trim() || (certType === 'PLATFORM_ISSUED' ? 'University Department' : 'Self-Uploaded Credential'),
         issueDate: issueDate,
         type: certType,
-        fileUrl: fileDataUrl || credentialUrl || undefined,
-        credentialUrl: credentialUrl || undefined,
+        fileUrl: uploadedFileUrl,
+        externalFileUrl: uploadedFileUrl,
+        credentialUrl: credentialUrl.trim() || undefined,
         fileName: selectedFile?.name || undefined,
       };
 
@@ -186,7 +227,11 @@ export const CertificateHub: React.FC = () => {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to register certificate');
+        const errMsg =
+          json.error?.message ||
+          (typeof json.error === 'string' ? json.error : null) ||
+          'Failed to register certificate';
+        throw new Error(errMsg);
       }
 
       // Add to state immediately

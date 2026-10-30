@@ -22,11 +22,13 @@ const createCertSchema = z
     type: z.enum(['PLATFORM_ISSUED', 'SELF_REPORTED']).optional(),
     issueDate: z.string().optional(),
     externalProvider: z.string().optional(),
-    fileUrl: z.string().url().optional(),
-    externalFileUrl: z.string().url().optional(),
+    fileUrl: z.string().optional(),
+    externalFileUrl: z.string().optional(),
+    credentialUrl: z.string().optional(),
+    fileName: z.string().optional(),
     verificationHash: z.string().optional(),
   })
-  .strict();
+  .passthrough();
 
 export const GET = apiRoute(
   {
@@ -141,7 +143,7 @@ export const POST = apiRoute(
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
         externalProvider:
           body.externalProvider?.trim() || (isPlatform ? 'University Issued' : 'Self-Reported / External Authority'),
-        externalFileUrl: body.fileUrl || body.externalFileUrl || null,
+        externalFileUrl: body.fileUrl || body.externalFileUrl || body.credentialUrl || null,
         verificationHash: body.verificationHash || randomHash,
       },
     });
