@@ -39,6 +39,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Eye,
+  UserPlus,
 } from 'lucide-react';
 import { JoinCohortModal } from '@components/mentor/JoinCohortModal';
 import type { Team, Milestone, DeliverableType, TeamMemberRole, Certificate } from '@/types';
@@ -158,6 +159,82 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
   const [oppMaxTeam, setOppMaxTeam] = useState(5);
   const [oppDeadline, setOppDeadline] = useState('2026-11-15');
   const [isCreatingOpp, setIsCreatingOpp] = useState(false);
+
+  // Modal: Provision Industry Expert
+  const [isCreateExpertOpen, setIsCreateExpertOpen] = useState(false);
+  const [expertName, setExpertName] = useState('');
+  const [expertEmail, setExpertEmail] = useState('');
+  const [expertCompany, setExpertCompany] = useState('');
+  const [expertDesignation, setExpertDesignation] = useState('');
+  const [expertPassword, setExpertPassword] = useState('TechCorp@2026');
+  const [expertSelectedTeams, setExpertSelectedTeams] = useState<string[]>([]);
+  const [isCreatingExpert, setIsCreatingExpert] = useState(false);
+  const [expertSuccessData, setExpertSuccessData] = useState<any | null>(null);
+  const [expertCopied, setExpertCopied] = useState(false);
+
+  const handleOpenCreateExpert = () => {
+    setNotificationBanner(null);
+    setExpertName('');
+    setExpertEmail('');
+    setExpertCompany('TechCorp Solutions');
+    setExpertDesignation('Industry Co-Mentor');
+    setExpertPassword('TechCorp@2026');
+    setExpertSelectedTeams(teamsState.map((t) => t.id));
+    setExpertSuccessData(null);
+    setIsCreateExpertOpen(true);
+  };
+
+  const handleCreateIndustryExpert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expertName.trim() || !expertEmail.trim()) {
+      alert('Please provide the expert full name and work email.');
+      return;
+    }
+
+    try {
+      setIsCreatingExpert(true);
+      const res = await fetch('/api/v1/mentor/create-industry-expert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: expertName.trim(),
+          email: expertEmail.trim(),
+          company: expertCompany.trim() || undefined,
+          designation: expertDesignation.trim() || undefined,
+          password: expertPassword.trim() || undefined,
+          teamIds: expertSelectedTeams.length > 0 ? expertSelectedTeams : undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to create industry expert account');
+      }
+
+      setExpertSuccessData(json.data);
+
+      const assignedIds = new Set(expertSelectedTeams);
+      setTeamsState((prev) =>
+        prev.map((t) =>
+          assignedIds.size === 0 || assignedIds.has(t.id)
+            ? {
+                ...t,
+                industryMentorName: `${expertName.trim()} (${expertCompany.trim() || 'Industry Partner'})`,
+              }
+            : t
+        )
+      );
+
+      setNotificationBanner({
+        type: 'success',
+        message: `Industry Expert account successfully provisioned for ${expertName.trim()}! Credentials ready to copy below.`,
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to create industry expert account');
+    } finally {
+      setIsCreatingExpert(false);
+    }
+  };
 
   // Load live teams from database
   useEffect(() => {
@@ -705,6 +782,18 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
 
         {/* Action Buttons Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
+          {!isIndustryExpert && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenCreateExpert}
+              leftIcon={<UserPlus className="w-4 h-4 text-amber-600" />}
+              className="border-amber-300 bg-amber-50/70 hover:bg-amber-100 text-amber-950 font-bold"
+            >
+              + Provision Industry Expert
+            </Button>
+          )}
+
           {/* Action 1: Assign Project to Group (Both Mentor & Industry Expert) */}
           <Button
             variant="primary"
@@ -865,6 +954,15 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
             >
               {copied ? '✓ Copied!' : <><Copy className="w-3.5 h-3.5" /> Copy Code</>}
             </button>
+            {!isIndustryExpert && (
+              <button
+                onClick={handleOpenCreateExpert}
+                className="px-3 py-1.5 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg active:scale-95 transition shadow-sm flex items-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Create Expert Login</span>
+              </button>
+            )}
             {!isIndustryExpert ? (
               <button
                 onClick={handleRegenerateCode}
@@ -2068,6 +2166,293 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
           </div>
         )}
       </Modal>
+
+      {/* ═════════════════════════════════════════════════════════════════════
+          MODAL 6: PROVISION INDUSTRY EXPERT LOGIN & CODE (FACULTY GUIDE)
+      ═════════════════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={isCreateExpertOpen}
+        onClose={() => setIsCreateExpertOpen(false)}
+        title={expertSuccessData ? 'Industry Expert Credentials Ready!' : 'Provision Industry Expert Login & Code'}
+        description={
+          expertSuccessData
+            ? 'The account has been created and linked to your student groups. Share these details directly with the industry mentor.'
+            : 'Create the login credentials and invitation code for your external industry supervisor directly. They do not need to register.'
+        }
+        maxWidth="2xl"
+      >
+        {expertSuccessData ? (
+          <div className="space-y-4 py-2">
+            {/* Success Hero Box */}
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center flex-shrink-0">
+                <Check className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-emerald-950">
+                  Account Active for {expertSuccessData.expert.name} ({expertSuccessData.expert.company})
+                </h4>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  Linked to student groups: {expertSuccessData.teamsAssigned?.join(', ') || 'All Guided Groups'}.
+                </p>
+              </div>
+            </div>
+
+            {/* Credential Card */}
+            <div className="p-4 bg-slate-900 text-white rounded-2xl space-y-3 shadow-lg">
+              <div className="text-[11px] uppercase font-bold tracking-wider text-amber-400 flex items-center justify-between">
+                <span>Login Credentials</span>
+                <span className="text-slate-400 font-mono text-[10px]">Role: Industry Expert</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Email</div>
+                  <div className="font-mono font-bold text-indigo-300 truncate select-all">
+                    {expertSuccessData.credentials.email}
+                  </div>
+                </div>
+
+                <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Temporary Password</div>
+                  <div className="font-mono font-bold text-amber-300 truncate select-all">
+                    {expertSuccessData.credentials.password}
+                  </div>
+                </div>
+
+                <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Faculty Mentor Code</div>
+                  <div className="font-mono font-bold text-emerald-300 truncate select-all">
+                    {expertSuccessData.credentials.facultyCode}
+                  </div>
+                </div>
+
+                <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                  <div className="text-slate-400 text-[10px]">Direct Portal Link</div>
+                  <div className="font-mono font-bold text-slate-300 truncate text-[11px]">
+                    /login?tab=industry
+                  </div>
+                </div>
+              </div>
+
+              {/* Action: Copy WhatsApp / Email Message */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(expertSuccessData.shareableMessage);
+                    }
+                    setExpertCopied(true);
+                    setTimeout(() => setExpertCopied(false), 2500);
+                  }}
+                  className="w-full sm:flex-1 py-2.5 px-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-amber-950 font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-md"
+                >
+                  {expertCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-950" />
+                      <span>✓ Copied Full WhatsApp / Email Invite!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copy Full Invitation & Credentials</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setExpertSuccessData(null);
+                  setExpertName('');
+                  setExpertEmail('');
+                }}
+              >
+                + Create Another Expert
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreateExpertOpen(false)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleCreateIndustryExpert} className="space-y-4 py-2">
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-950 leading-relaxed flex items-start gap-2.5">
+              <Building2 className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
+              <div>
+                <strong>Faculty Provisioning:</strong> Enter the expert's name and corporate email. We will generate their secure account and auto-link them to your student teams so they can start co-mentoring immediately.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Expert Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={expertName}
+                  onChange={(e) => setExpertName(e.target.value)}
+                  placeholder="e.g. Rahul Kapoor"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Corporate Work Email <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={expertEmail}
+                  onChange={(e) => setExpertEmail(e.target.value)}
+                  placeholder="e.g. rahul.kapoor@techcorp.com"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Company / Organization
+                </label>
+                <input
+                  type="text"
+                  value={expertCompany}
+                  onChange={(e) => setExpertCompany(e.target.value)}
+                  placeholder="e.g. TechCorp Solutions, Infosys"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Designation / Role in Industry
+                </label>
+                <input
+                  type="text"
+                  value={expertDesignation}
+                  onChange={(e) => setExpertDesignation(e.target.value)}
+                  placeholder="e.g. Principal Cloud Architect"
+                  className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Temporary Access Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cleanComp = (expertCompany || 'Expert').replace(/[^a-zA-Z0-9]/g, '');
+                    setExpertPassword(`${cleanComp}@${Math.floor(1000 + Math.random() * 9000)}`);
+                  }}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold"
+                >
+                  Generate Random
+                </button>
+              </div>
+              <input
+                type="text"
+                required
+                value={expertPassword}
+                onChange={(e) => setExpertPassword(e.target.value)}
+                placeholder="TechCorp@2026"
+                className="w-full px-3 py-2 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                The expert will use this password to sign in on the Industry Expert tab.
+              </p>
+            </div>
+
+            {/* Target Groups Multi-Select */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Assign to Student Groups
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (expertSelectedTeams.length === teamsState.length) {
+                      setExpertSelectedTeams([]);
+                    } else {
+                      setExpertSelectedTeams(teamsState.map((t) => t.id));
+                    }
+                  }}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold"
+                >
+                  {expertSelectedTeams.length === teamsState.length ? 'Deselect All' : 'Select All Groups'}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
+                {teamsState.map((team) => {
+                  const isChecked = expertSelectedTeams.includes(team.id);
+                  return (
+                    <label
+                      key={team.id}
+                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer text-xs border transition ${
+                        isChecked
+                          ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900 font-semibold'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setExpertSelectedTeams((prev) => prev.filter((id) => id !== team.id));
+                          } else {
+                            setExpertSelectedTeams((prev) => [...prev, team.id]);
+                          }
+                        }}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="truncate">{team.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateExpertOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isCreatingExpert}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                rightIcon={<UserPlus className="w-4 h-4" />}
+              >
+                Create Login & Generate Code
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
     </div>
   );
 };

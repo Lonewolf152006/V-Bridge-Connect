@@ -60,6 +60,28 @@ export const LoginScreen: React.FC = () => {
 
   React.useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab')?.toLowerCase();
+        const queryEmail = params.get('email');
+        const code = params.get('code') || params.get('facultyCode');
+
+        if (tab === 'industry' || tab === 'expert' || tab === 'partner') {
+          setActiveTab('INDUSTRY_PARTNER');
+        } else if (tab === 'super_admin' || tab === 'admin') {
+          setActiveTab('SUPER_ADMIN');
+        }
+        if (queryEmail) {
+          setEmail(queryEmail.trim());
+        }
+        if (code) {
+          setFacultyCode(code.trim().toUpperCase());
+        }
+      } catch (e) {
+        // Safe query parsing fallback
+      }
+    }
   }, []);
 
   // Form states — initialized empty (no autofill)
@@ -153,7 +175,7 @@ export const LoginScreen: React.FC = () => {
       let targetRoute = '/dashboard';
       if (role === 'super_admin') {
         targetRoute = '/admin/reports';
-      } else if (role === 'coordinator') {
+      } else if (role === 'coordinator' || role === 'industry_partner') {
         targetRoute = '/mentor/dashboard';
       } else {
         targetRoute = '/dashboard';
@@ -430,7 +452,7 @@ export const LoginScreen: React.FC = () => {
                   <Building2 className="w-4 h-4" />
                   <span>Industry Expert & Corporate Portal</span>
                 </div>
-                External co-mentors and enterprise partners guide capstone groups and offer industry opportunities.
+                Your login and access code are provisioned directly by your faculty guide. Enter your corporate email and temporary password to access student groups.
                 {mounted && (
                   <div className="mt-2.5 pt-2 border-t border-amber-200/80 flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-amber-600">Quick Fill:</span>

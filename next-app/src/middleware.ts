@@ -84,8 +84,12 @@ export default auth((req) => {
   }
 
   // 4. Role-based route protection
-  if (pathname.startsWith('/coordinator') || pathname.startsWith('/mentor')) {
+  if (pathname.startsWith('/coordinator')) {
     if (userRole !== 'coordinator' && userRole !== 'super_admin') {
+      return NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin));
+    }
+  } else if (pathname.startsWith('/mentor')) {
+    if (userRole !== 'coordinator' && userRole !== 'super_admin' && userRole !== 'industry_partner') {
       return NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin));
     }
   }

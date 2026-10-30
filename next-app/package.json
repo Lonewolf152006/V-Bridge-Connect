@@ -19,7 +19,8 @@
     "test:security": "node scripts/test_phase_e_security.mjs",
     "test:journeys": "node scripts/test_phase_f_user_journeys.mjs",
     "test:all": "npm run check:no-mocks && npm run test:contracts && npm run test:perf && npm run test:scale && npm run test:security && npm run test:journeys",
-    "analyze": "node scripts/run_bundle_analyzer.mjs"
+    "analyze": "node scripts/run_bundle_analyzer.mjs",
+    "check:s3": "node scripts/check_s3.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

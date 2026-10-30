@@ -195,6 +195,8 @@ export const CertificateHub: React.FC = () => {
               });
               if (uploadRes.ok) {
                 uploadedFileUrl = publicUrl;
+              } else {
+                console.error(`[S3 Upload] Direct PUT upload failed (HTTP ${uploadRes.status}). Verify AWS IAM policy and S3 CORS.`);
               }
             }
           }
