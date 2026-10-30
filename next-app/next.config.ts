@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");
 
@@ -61,4 +62,28 @@ const withBundleAnalyzer = process.env.ANALYZE === 'true'
   ? require('@next/bundle-analyzer')({ enabled: true })
   : (config: NextConfig) => config;
 
-export default withBundleAnalyzer(nextConfig);
+const sentryWebpackPluginOptions = {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Only upload source maps in CI or when SENTRY_AUTH_TOKEN is explicitly present
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+  },
+  hideSourceMaps: true,
+
+  // Sentry Release & Deploy Health Tracking
+  release: {
+    deploy: {
+      env: process.env.VERCEL_ENV || process.env.NODE_ENV || 'production',
+    },
+  },
+};
+
+export default withSentryConfig(
+  withBundleAnalyzer(nextConfig),
+  sentryWebpackPluginOptions
+);
