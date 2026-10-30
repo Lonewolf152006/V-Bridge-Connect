@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["bom1"],
+  "crons": [
+    {
+      "path": "/api/cron/overdue-milestones",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/inactivity-check",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}
+
